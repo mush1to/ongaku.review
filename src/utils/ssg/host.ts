@@ -12,7 +12,7 @@ import {
 import { searchPath, site } from "../../config/site";
 import type { PageData, Pagination } from "../../pages/page-data";
 import { normalizeSearchPath } from "../search-path";
-import { listPosts, loadDocs, type DocPage } from "./content";
+import { listPosts, loadAboutPage, loadDocs, type DocPage } from "./content";
 import { preserveFullWidthSpaces } from "./whitespace";
 
 const components = (root: string) => ({
@@ -74,7 +74,7 @@ function homePages(posts: readonly DocPage[]): PageData[] {
   });
 }
 
-const docPage = (doc: DocPage): PageData => ({
+const docPage = (doc: DocPage, isPost: boolean): PageData => ({
   kind: "page",
   path: doc.path,
   title: doc.title,
@@ -82,7 +82,7 @@ const docPage = (doc: DocPage): PageData => ({
   breadcrumbs: [{ label: doc.title }],
   created: doc.created,
   updated: doc.updated,
-  isPost: doc.listed,
+  isPost,
 });
 
 const searchPage = (docs: readonly DocPage[]): PageData => ({
@@ -259,10 +259,19 @@ const host: OxContentCustomHostModule = {
         description: doc.description,
         inputPath: doc.documentPath,
         source: doc.source,
-        render: (context) => renderPage(context, docPage(doc), doc),
+        render: (context) => renderPage(context, docPage(doc, true), doc),
       });
+    const about = await ctx.memo("about", () => loadAboutPage(ctx.root));
     const search = searchPage(docs);
     routes.push(
+      {
+        path: about.path,
+        title: about.title,
+        description: about.description,
+        inputPath: about.documentPath,
+        source: about.source,
+        render: (context) => renderPage(context, docPage(about, false), about),
+      },
       {
         path: search.path,
         title: search.title,

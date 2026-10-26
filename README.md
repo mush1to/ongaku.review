@@ -15,7 +15,7 @@ ongaku.reviewは、音楽に関する記事を投稿するサイトである。S
 | パス | 内容 |
 | --- | --- |
 | `/` | 記事一覧。作成日時の新しい順に12件ずつ表示し、13件目以降は`/page/2/`から続ける |
-| `/about/` | [`src/content/posts/about.mdx`](src/content/posts/about.mdx)の内容 |
+| `/about/` | 固定ページ。[`src/content/about.mdx`](src/content/about.mdx)の内容 |
 | `/search/` | サイト内検索 |
 | `/posts/<ファイル名>/` | 各記事 |
 
@@ -42,13 +42,13 @@ icon: cd
 | `created` | 作成日を`YYYY-MM-DD`形式で書く。トップページの「作成日時」に表示し、新しい順に並べる。省略した記事は一覧の最後に並ぶ |
 | `updated` | 更新日を`YYYY-MM-DD`形式で書く。記事ページの「更新日時」に表示する。省略した場合は`created`と同じ日時になる |
 | `icon` | 記事一覧と検索結果に表示するアイコン。`document`（文書）・`music`（音符）・`cd`（CD）から選ぶ。省略した場合は`document` |
-| `listed` | `false`にすると記事一覧とRSSフィードに載せない。Aboutページで使う。省略した場合は`true` |
+| `isPublished` | 真偽値。`false`にすると記事を公開しない。記事ページ・記事一覧・RSSフィード・検索のすべてから除外する。省略した場合は`true` |
 
-`about`はAboutページ専用、`index`はトップページ専用のため、記事のファイル名には使わない。
+Aboutは記事置き場の外にある`src/content/about.mdx`から生成する固定ページで、URLは`/about/`である。記事一覧とRSSフィードには含めない。記事のファイル名に`about`を使った場合は、通常の記事として`/posts/about/`で公開する。`index`はトップページ専用のため、記事のファイル名には使わない。
 
 ## アイコン
 
-アイコンは[FamFamFam Silk as SVG](https://github.com/Simandara/famfamfam-silk-svg)（Simandara作。原作はMark Jamesの[Silk Icons](https://github.com/markjames/famfamfam-silk-icons)）を使い、`public/icons/silk/`に置く。ライセンスは[CC BY 4.0](https://creativecommons.org/licenses/by/4.0/deed.ja)で、[`src/content/posts/about.mdx`](src/content/posts/about.mdx)の「クレジット」に表示する。アイコンを追加したときは`src/config/icons.ts`にも登録する。
+アイコンは[FamFamFam Silk as SVG](https://github.com/Simandara/famfamfam-silk-svg)（Simandara作。原作はMark Jamesの[Silk Icons](https://github.com/markjames/famfamfam-silk-icons)）を使い、`public/icons/silk/`に置く。ライセンスは[CC BY 4.0](https://creativecommons.org/licenses/by/4.0/deed.ja)で、[`src/content/about.mdx`](src/content/about.mdx)の「クレジット」に表示する。アイコンを追加したときは`src/config/icons.ts`にも登録する。
 
 ## セットアップ
 
@@ -107,4 +107,4 @@ npm run preview
 
 このリポジトリの内容について、mush1to はすべての権利を留保している。GitHub の利用規約で認められる範囲を除き、事前の許可なく利用、複製、改変、再配布することはできない。詳細は[`LICENSE`](LICENSE)を参照する。
 
-`public/icons/silk/`のアイコンは第三者の素材で、[CC BY 4.0](https://creativecommons.org/licenses/by/4.0/deed.ja)で提供されている。クレジットは[`src/content/posts/about.mdx`](src/content/posts/about.mdx)に記載している。
+`public/icons/silk/`のアイコンは第三者の素材で、[CC BY 4.0](https://creativecommons.org/licenses/by/4.0/deed.ja)で提供されている。クレジットは[`src/content/about.mdx`](src/content/about.mdx)に記載している。

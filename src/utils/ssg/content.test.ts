@@ -2,7 +2,7 @@ import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { listPosts, loadDocs } from "./content";
+import { listPosts, loadAboutPage, loadDocs, loadSearchIndex } from "./content";
 
 const roots: string[] = [];
 
@@ -23,6 +23,30 @@ afterEach(async () => {
 });
 
 describe("loadDocs", () => {
+  it("公開状態を省略した記事とtrueの記事だけを読み込む", async () => {
+    const root = await createRoot({
+      "default.md": post("title: 省略"),
+      "published.md": post("title: 公開\nisPublished: true"),
+      "hidden.mdx": post("title: 非公開\nisPublished: false"),
+    });
+
+    expect((await loadDocs(root)).map((doc) => doc.path)).toEqual([
+      "/posts/default/",
+      "/posts/published/",
+    ]);
+  });
+
+  it.each(['"false"', "0", "null", "[]", "{}"])(
+    "真偽値でないisPublished: %sを拒否する",
+    async (value) => {
+      const root = await createRoot({ "invalid.md": post(`isPublished: ${value}`) });
+
+      await expect(loadDocs(root)).rejects.toThrow(
+        "src/content/posts/invalid.md: isPublished には true か false を指定してください",
+      );
+    },
+  );
+
   it("createdとupdatedを読み取る", async () => {
     const root = await createRoot({
       "first.md": post("title: 最初の記事\ncreated: 2026-10-01\nupdated: 2026-10-20"),
@@ -42,6 +66,39 @@ describe("loadDocs", () => {
     const [doc] = await loadDocs(root);
 
     expect(doc?.updated).toBe("2026-10-01");
+  });
+});
+
+describe("loadAboutPage", () => {
+  it("固定ページと同名の記事を別々のURLで読み込む", async () => {
+    const root = await createRoot({ "about.md": post("title: Aboutの記事") });
+    await writeFile(
+      path.join(root, "src/content/about.mdx"),
+      post("title: About\ndescription: 固定ページ"),
+    );
+
+    expect(await loadAboutPage(root)).toMatchObject({
+      path: "/about/",
+      title: "About",
+      description: "固定ページ",
+    });
+    expect((await loadDocs(root)).map((doc) => doc.path)).toEqual(["/posts/about/"]);
+  });
+});
+
+describe("loadSearchIndex", () => {
+  it("非公開記事を本文・検索語を含めてインデックスから除外する", async () => {
+    const root = await createRoot({
+      "published.md": post("title: PublicFixture"),
+      "hidden.mdx": post("title: SecretFixture\nisPublished: false") + "SecretBodyToken",
+      "_partial.md": post("title: PartialFixture"),
+    });
+    await writeFile(path.join(root, "src/content/about.mdx"), post("title: AboutFixture"));
+
+    const index = await loadSearchIndex(root);
+    expect(JSON.parse(index).documents.map((doc: { id: string }) => doc.id)).toEqual(["published"]);
+    expect(index).toContain("PublicFixture");
+    expect(index.toLowerCase()).not.toMatch(/secret|partial|aboutfixture/);
   });
 });
 

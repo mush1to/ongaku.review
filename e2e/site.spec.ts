@@ -191,6 +191,10 @@ test.describe("Aboutページ", () => {
     await expect(page).toHaveTitle("About | ongaku.review");
     await expect(page.getByRole("heading", { level: 1, name: "About" })).toBeVisible();
     await expect(page.locator(".prose")).toContainText("音楽について書くブログです。");
+    await expect(page.locator(".document-date")).toHaveCount(0);
+    await expect(mainNavigation(page).getByRole("link", { name: "Home" })).not.toHaveAttribute(
+      "aria-current",
+    );
     await expect(mainNavigation(page).getByRole("link", { name: "About" })).toHaveAttribute(
       "aria-current",
       "page",
@@ -209,6 +213,39 @@ test.describe("Aboutページ", () => {
       "https://creativecommons.org/licenses/by/4.0/deed.ja",
     );
     await expect(page.locator(".site-footer")).not.toContainText("FamFamFam");
+  });
+});
+
+test.describe("非公開記事", () => {
+  test("記事URLは404になり、すべての記事一覧から除外する", async ({ page, request }) => {
+    expect((await request.get("/posts/unpublished-test/")).status()).toBe(404);
+    await page.goto("/");
+    const paths = await page
+      .locator(".pagination a")
+      .evaluateAll((links) => [...new Set(links.map((link) => link.getAttribute("href")!))]);
+    for (const path of new Set(["/", ...paths])) {
+      await page.goto(path);
+      await expect(page.locator(".file-table")).not.toContainText("UnpublishedFixtureTitle");
+      await expect(page.locator(".file-table a[href='/about/']")).toHaveCount(0);
+    }
+  });
+
+  test("RSS・サイトマップ・検索インデックスに非公開記事の情報を含めない", async ({ request }) => {
+    for (const path of ["/feed.xml", "/sitemap.xml", "/search-index.json"]) {
+      const response = await request.get(path);
+      expect(response.ok()).toBe(true);
+      expect((await response.text()).toLowerCase()).not.toMatch(
+        /unpublishedfixture|unpublished-test/,
+      );
+    }
+    const index = await (await request.get("/search-index.json")).json();
+    expect(index.documents.some((doc: { id: string }) => doc.id === "about")).toBe(false);
+  });
+
+  test("非公開本文の検索では結果が出ない", async ({ page }) => {
+    await page.goto("/search/?q=UnpublishedFixtureBody");
+    await expect(page.getByRole("status")).toContainText("一致するページは見つかりませんでした。");
+    await expect(page.locator("[data-search-results] li")).toHaveCount(0);
   });
 });
 

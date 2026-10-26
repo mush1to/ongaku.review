@@ -1,14 +1,11 @@
 import { readFile, readdir } from "node:fs/promises";
 import path from "node:path";
 import { parse } from "yaml";
+import { buildSearchIndex } from "@ox-content/vite-plugin";
 import { defaultPostIcon, isPostIcon, postIcons, type PostIcon } from "../../config/icons";
 
 export const contentDirectory = "src/content/posts";
-
-/** Content files published at their own path instead of under `/posts/`. */
-const standalonePaths: Readonly<Record<string, string>> = {
-  about: "/about/",
-};
+export const aboutDocument = "src/content/about.mdx";
 
 export interface DocPage {
   path: string;
@@ -21,8 +18,6 @@ export interface DocPage {
   /** YYYY-MM-DD. Defaults to `created`. */
   updated?: string;
   icon: PostIcon;
-  /** Listed pages appear in the post list and the feed. */
-  listed: boolean;
   source: string;
   documentPath: string;
 }
@@ -53,8 +48,6 @@ function contentPath(relativePath: string): string {
 
 function routePath(relativePath: string): string {
   const normalized = contentPath(relativePath).slice(1);
-  const standalone = standalonePaths[normalized];
-  if (standalone) return standalone;
   if (normalized === "index") return "/";
   if (normalized.endsWith("/index")) return "/posts/" + normalized.slice(0, -"index".length);
   return "/posts/" + normalized + "/";
@@ -84,10 +77,10 @@ function readIcon(value: unknown, file: string): PostIcon {
   throw new Error(`${file}: icon には ${postIcons.join("・")} のいずれかを指定してください`);
 }
 
-function readListed(value: unknown, file: string): boolean {
-  if (value === undefined || value === null) return true;
+function readIsPublished(value: unknown, file: string): boolean {
+  if (value === undefined) return true;
   if (typeof value === "boolean") return value;
-  throw new Error(`${file}: listed には true か false を指定してください`);
+  throw new Error(`${file}: isPublished には true か false を指定してください`);
 }
 
 /**
@@ -108,6 +101,7 @@ export async function loadDocs(root: string): Promise<DocPage[]> {
     const source = await readFile(documentPath, "utf8");
     const frontmatter = readFrontmatter(source);
     const file = path.relative(root, documentPath).split(path.sep).join("/");
+    if (!readIsPublished(frontmatter.isPublished, file)) continue;
     const title =
       typeof frontmatter.title === "string" && frontmatter.title.trim()
         ? frontmatter.title.trim()
@@ -123,7 +117,6 @@ export async function loadDocs(root: string): Promise<DocPage[]> {
       created,
       updated: readDate(frontmatter.updated, file, "updated") ?? created,
       icon: readIcon(frontmatter.icon, file),
-      listed: readListed(frontmatter.listed, file),
       source,
       documentPath,
     });
@@ -131,16 +124,44 @@ export async function loadDocs(root: string): Promise<DocPage[]> {
   return pages.sort((a, b) => a.path.localeCompare(b.path, "en"));
 }
 
-/** Listed pages, newest creation date first. Undated pages come last. */
+export async function loadAboutPage(root: string): Promise<DocPage> {
+  const documentPath = path.join(root, aboutDocument);
+  const source = await readFile(documentPath, "utf8");
+  const frontmatter = readFrontmatter(source);
+  return {
+    path: "/about/",
+    indexPath: "/about",
+    title: typeof frontmatter.title === "string" ? frontmatter.title.trim() : "About",
+    description: typeof frontmatter.description === "string" ? frontmatter.description.trim() : "",
+    icon: defaultPostIcon,
+    source,
+    documentPath,
+  };
+}
+
+/** Exclude unpublished sources from both the documents and the BM25 index. */
+export async function loadSearchIndex(root: string): Promise<string> {
+  const docs = await loadDocs(root);
+  const published = new Set(docs.map((doc) => doc.indexPath.slice(1)));
+  const contentRoot = path.join(root, contentDirectory);
+  const entries = await readdir(contentRoot, { recursive: true, withFileTypes: true });
+  const excluded = entries
+    .filter((entry) => entry.isFile() && /\.mdx?$/i.test(entry.name))
+    .map((entry) =>
+      contentPath(path.relative(contentRoot, path.join(entry.parentPath, entry.name))).slice(1),
+    )
+    .filter((id) => !published.has(id));
+  return buildSearchIndex(contentRoot, "/", [".mdx", ".md"], undefined, excluded, true);
+}
+
+/** Published posts, newest creation date first. Undated posts come last. */
 export function listPosts(docs: readonly DocPage[]): DocPage[] {
-  return docs
-    .filter((doc) => doc.listed)
-    .sort((a, b) => {
-      if (a.created !== b.created) {
-        if (!a.created) return 1;
-        if (!b.created) return -1;
-        return b.created.localeCompare(a.created);
-      }
-      return a.title.localeCompare(b.title, "ja");
-    });
+  return [...docs].sort((a, b) => {
+    if (a.created !== b.created) {
+      if (!a.created) return 1;
+      if (!b.created) return -1;
+      return b.created.localeCompare(a.created);
+    }
+    return a.title.localeCompare(b.title, "ja");
+  });
 }
