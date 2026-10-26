@@ -1,5 +1,5 @@
 import path from "node:path";
-import { readFile, stat, writeFile } from "node:fs/promises";
+import { mkdir, readFile, stat, writeFile } from "node:fs/promises";
 import { defineConfig } from "vite-plus";
 import { svelte } from "@rsvelte/vite-plugin-svelte";
 import { oxContentCustomHost, planCollectionAssetsFromDocuments } from "@ox-content/vite-plugin";
@@ -41,8 +41,7 @@ export default defineConfig(async ({ mode }) => {
       {
         name: "site-public-search",
         configResolved(config) {
-          if (config.command === "build" && mode !== "test")
-            searchOutputDirectory = path.resolve(root, config.build.outDir);
+          if (mode !== "test") searchOutputDirectory = path.resolve(root, config.build.outDir);
         },
         // Ox Content scans srcDir independently of host routes. Replace its index
         // after its writer finishes, using the same publication rules as routes.
@@ -51,6 +50,7 @@ export default defineConfig(async ({ mode }) => {
           sequential: true,
           async handler() {
             if (!searchOutputDirectory) return;
+            await mkdir(searchOutputDirectory, { recursive: true });
             await writeFile(
               path.join(searchOutputDirectory, "search-index.json"),
               await loadSearchIndex(root),
