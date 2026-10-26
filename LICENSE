@@ -1,4 +1,4 @@
-Copyright (c) 2026 mush1to. All rights reserved.
+Copyright (c) 2026 mush1to and contributors. All rights reserved.
 
 This repository is published for viewing and for proposing changes to
 this project through pull requests. Except for the rights granted to
@@ -7,6 +7,8 @@ use, copy, modify, merge, publish, distribute, sublicense, or sell any
 part of this repository.
 
 Contributions are accepted under the terms in .github/CONTRIBUTING.md.
+Each contributor retains copyright in their contribution and grants
+the license described there.
 
 Files under public/icons/silk/ are third-party materials licensed under
 CC BY 4.0 by their authors. See src/content/posts/about.mdx for the
