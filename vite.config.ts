@@ -14,7 +14,7 @@ import {
 } from "./src/utils/ssg/content";
 import { site } from "./src/config/site";
 
-export default defineConfig(async ({ mode }) => {
+export default defineConfig(async ({ command, mode }) => {
   const root = import.meta.dirname;
   let searchOutputDirectory: string | undefined;
   const registry = createSvelteHtmlHostIslandRegistry({
@@ -30,6 +30,56 @@ export default defineConfig(async ({ mode }) => {
     watch: [contentDirectory, aboutDocument],
     root,
   });
+  const oxContentPlugins = oxContentCustomHost({
+    host: "./src/utils/ssg/host.ts",
+    collectionAssets: {
+      watch: [
+        { path: contentDirectory, kind: "directory" },
+        { path: aboutDocument, kind: "file" },
+      ],
+      manifest: async (ctx) => {
+        const docs = [...(await loadDocs(ctx.root)), await loadAboutPage(ctx.root)];
+        const result = await planCollectionAssetsFromDocuments({
+          root: ctx.root,
+          contentRoot: "src/content",
+          documents: docs.map((doc) => ({
+            documentPath: doc.documentPath,
+            pagePath: doc.path,
+          })),
+        });
+        if (result.diagnostics.length)
+          throw new Error(result.diagnostics.map((item) => item.message).join("\n"));
+        return result.manifest;
+      },
+    },
+    oxContent: {
+      srcDir: contentDirectory,
+      docs: false,
+      highlight: true,
+      mdx: true,
+      search: mode === "test" ? false : { limit: 8, hotkey: "" },
+      feeds: { formats: ["rss"], title: site.title, language: "ja" },
+      siteMaps: { llms: false },
+      ssg: {
+        siteUrl: site.url,
+        siteName: site.title,
+        markdownSource: false,
+      },
+    },
+    dev: {
+      feedOutputs: true,
+      routeDependencies: [
+        { path: contentDirectory, kind: "directory" },
+        { path: aboutDocument, kind: "file" },
+      ],
+    },
+    build: { enabled: mode !== "test", transformHtml: false },
+  });
+  const configuredOxContentPlugins = oxContentPlugins.map((plugin) => {
+    if (command === "build" || plugin.name !== "ox-content:search") return plugin;
+    // The native writer otherwise overwrites dist at dev-server shutdown.
+    return { ...plugin, closeBundle: undefined };
+  });
   return {
     appType: "mpa" as const,
     server: {
@@ -41,7 +91,8 @@ export default defineConfig(async ({ mode }) => {
       {
         name: "site-public-search",
         configResolved(config) {
-          if (mode !== "test") searchOutputDirectory = path.resolve(root, config.build.outDir);
+          if (command === "build" && mode !== "test")
+            searchOutputDirectory = path.resolve(root, config.build.outDir);
         },
         // Ox Content scans srcDir independently of host routes. Replace its index
         // after its writer finishes, using the same publication rules as routes.
@@ -96,51 +147,7 @@ export default defineConfig(async ({ mode }) => {
       },
       svelte(),
       registry.plugin,
-      oxContentCustomHost({
-        host: "./src/utils/ssg/host.ts",
-        collectionAssets: {
-          watch: [
-            { path: contentDirectory, kind: "directory" },
-            { path: aboutDocument, kind: "file" },
-          ],
-          manifest: async (ctx) => {
-            const docs = [...(await loadDocs(ctx.root)), await loadAboutPage(ctx.root)];
-            const result = await planCollectionAssetsFromDocuments({
-              root: ctx.root,
-              contentRoot: "src/content",
-              documents: docs.map((doc) => ({
-                documentPath: doc.documentPath,
-                pagePath: doc.path,
-              })),
-            });
-            if (result.diagnostics.length)
-              throw new Error(result.diagnostics.map((item) => item.message).join("\n"));
-            return result.manifest;
-          },
-        },
-        oxContent: {
-          srcDir: contentDirectory,
-          docs: false,
-          highlight: true,
-          mdx: true,
-          search: mode === "test" ? false : { limit: 8, hotkey: "" },
-          feeds: { formats: ["rss"], title: site.title, language: "ja" },
-          siteMaps: { llms: false },
-          ssg: {
-            siteUrl: site.url,
-            siteName: site.title,
-            markdownSource: false,
-          },
-        },
-        dev: {
-          feedOutputs: true,
-          routeDependencies: [
-            { path: contentDirectory, kind: "directory" },
-            { path: aboutDocument, kind: "file" },
-          ],
-        },
-        build: { enabled: mode !== "test", transformHtml: false },
-      }),
+      ...configuredOxContentPlugins,
     ],
     build: {
       manifest: true,
