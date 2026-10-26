@@ -123,7 +123,7 @@ export default defineConfig(async ({ mode }) => {
           docs: false,
           highlight: true,
           mdx: true,
-          search: { limit: 8, hotkey: "" },
+          search: mode === "test" ? false : { limit: 8, hotkey: "" },
           feeds: { formats: ["rss"], title: site.title, language: "ja" },
           siteMaps: { llms: false },
           ssg: {
