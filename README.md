@@ -101,10 +101,10 @@ npm run preview
 
 ## コントリビューション
 
-外部からの変更は fork して pull request を送る。手順と貢献のライセンス条件は[`.github/CONTRIBUTING.md`](.github/CONTRIBUTING.md)に記載している。
+外部からの変更は fork して pull request を送る。手順と著作権の譲渡条件は[`.github/CONTRIBUTING.md`](.github/CONTRIBUTING.md)に記載している。
 
 ## ライセンス
 
-このリポジトリの内容は、すべての権利を留保している。GitHub の利用規約で認められる範囲を除き、事前の許可なく利用、複製、改変、再配布することはできない。詳細は[`LICENSE`](LICENSE)を参照する。
+このリポジトリの内容について、mush1to はすべての権利を留保している。GitHub の利用規約で認められる範囲を除き、事前の許可なく利用、複製、改変、再配布することはできない。詳細は[`LICENSE`](LICENSE)を参照する。
 
 `public/icons/silk/`のアイコンは第三者の素材で、[CC BY 4.0](https://creativecommons.org/licenses/by/4.0/deed.ja)で提供されている。クレジットは[`src/content/posts/about.mdx`](src/content/posts/about.mdx)に記載している。
