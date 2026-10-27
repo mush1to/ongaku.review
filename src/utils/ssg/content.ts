@@ -109,10 +109,9 @@ async function readThumbnail(
   if (value === undefined || value === null) return undefined;
   if (typeof value !== "string" || !value.trim())
     throw new Error(`${file}: thumbnail には画像ファイルのパスを文字列で指定してください`);
-  const reference = value.trim();
+  const reference = value.trim().replaceAll("\\", "/");
   if (
     reference.startsWith("/") ||
-    reference.startsWith("\\") ||
     path.isAbsolute(reference) ||
     /^[a-z][a-z\d+.-]*:/i.test(reference)
   )
@@ -135,11 +134,7 @@ async function readThumbnail(
   if (alt !== undefined && alt !== null && typeof alt !== "string")
     throw new Error(`${file}: thumbnailAlt は文字列で指定してください`);
   const assetBase = pagePath === "/" ? "/" : pagePath + "/";
-  const encodedReference = reference
-    .replaceAll("\\", "/")
-    .split("/")
-    .map(encodeURIComponent)
-    .join("/");
+  const encodedReference = reference.split("/").map(encodeURIComponent).join("/");
   return {
     sourcePath,
     publicPath: new URL(encodedReference, "https://local" + assetBase).pathname,

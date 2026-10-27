@@ -96,6 +96,18 @@ describe("thumbnail", () => {
     });
   });
 
+  it("バックスラッシュ区切りの相対パスもスラッシュと同じ画像として解決する", async () => {
+    const root = await createRootWithImage(`thumbnail: ./images\\cover.png`);
+
+    const [doc] = await loadDocs(root);
+
+    expect(doc?.thumbnail).toEqual({
+      sourcePath: path.join(root, "src/content/posts/images/cover.png"),
+      publicPath: "/posts/first/images/cover.png",
+      alt: "",
+    });
+  });
+
   it("thumbnailAltを省略すると代替テキストを空にする", async () => {
     const root = await createRootWithImage("thumbnail: ./images/cover.png");
 
