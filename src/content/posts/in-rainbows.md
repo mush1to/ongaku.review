@@ -3,6 +3,9 @@ title: 「In Rainbows」の温度
 description: Radioheadが2007年に配信で公開した「In Rainbows」を、音の温度から振り返ります。
 created: 2026-10-18
 icon: cd
+tags:
+  - ロック
+  - Radiohead
 ---
 
 「In Rainbows」は2007年に発表されたRadioheadのアルバムです。当時は配信の仕組みが話題になりましたが、今聴くと、音そのものの柔らかさが目立ちます。

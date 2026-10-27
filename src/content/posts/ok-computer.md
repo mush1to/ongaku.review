@@ -3,6 +3,9 @@ title: 「OK Computer」の静かな怒り
 description: Radioheadが1997年に発表した「OK Computer」を、街の雑音と重ねて聴き直します。
 created: 2026-10-24
 icon: music
+tags:
+  - ロック
+  - Radiohead
 ---
 
 「OK Computer」は1997年に発表されたRadioheadのアルバムです。発表から時間が経っても、収録曲の描く景色は色あせません。今回は通勤の行き帰りに聴き、曲の外側にある雑音との関係を考えました。

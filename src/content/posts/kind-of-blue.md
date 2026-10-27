@@ -3,6 +3,9 @@ title: 「Kind of Blue」の余白
 description: Miles Davisの「Kind of Blue」を、音と音の間隔に注目して聴きます。
 created: 2026-10-23
 icon: cd
+tags:
+  - ジャズ
+  - 1950年代
 ---
 
 「Kind of Blue」は1959年に発表されたMiles Davisのアルバムです。ジャズをあまり聴かない時期にも、この一枚だけは繰り返し再生していました。今回は、旋律そのものより音と音の間隔に意識を向けて聴いています。

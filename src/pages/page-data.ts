@@ -14,6 +14,19 @@ export interface PostSummary {
 
 export interface SearchPage {
   path: string;
+  title: string;
+  icon: PostIcon;
+  tags: string[];
+}
+
+export interface Thumbnail {
+  src: string;
+  alt: string;
+}
+
+export interface AdjacentPost {
+  path: string;
+  title: string;
   icon: PostIcon;
 }
 
@@ -34,6 +47,12 @@ export interface PageData {
   created?: string;
   updated?: string;
   isPost?: boolean;
+  icon?: PostIcon;
+  author?: string;
+  thumbnail?: Thumbnail;
+  tags?: string[];
+  /** `previous` is the older post and `next` the newer one. */
+  adjacent?: { previous?: AdjacentPost; next?: AdjacentPost };
   posts?: PostSummary[];
   pagination?: Pagination;
   searchPages?: Record<string, SearchPage>;

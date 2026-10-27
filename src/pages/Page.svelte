@@ -14,6 +14,11 @@
       : 0,
   );
   const formatDate = (date: string) => date.replaceAll("-", "/");
+  const tagSearchPath = (tag: string) => searchPath + "?q=" + encodeURIComponent("#" + tag);
+  const shareUrl = $derived(
+    "https://x.com/intent/post?" +
+      new URLSearchParams({ text: page.title, url: site.url + page.path }).toString(),
+  );
 </script>
 
 <a class="skip-link" href="#main">本文へスキップ</a>
@@ -176,24 +181,90 @@
       {:else}
         <article class="pane document">
           <header class="document-header">
-            <h1>{page.title}</h1>
-            {#if page.created}
-              <p class="document-date">
-                <span class="document-date-label">作成日時</span>
-                <time datetime={page.created}>{formatDate(page.created)}</time>
-              </p>
+            {#if page.thumbnail}
+              <figure class="document-thumbnail">
+                <img src={page.thumbnail.src} alt={page.thumbnail.alt} width="1200" height="630" />
+              </figure>
             {/if}
-            {#if page.updated}
-              <p class="document-date">
-                <span class="document-date-label">更新日時</span>
-                <time datetime={page.updated}>{formatDate(page.updated)}</time>
-              </p>
+            <h1>{page.title}</h1>
+            {#snippet dates()}
+              {#if page.created}
+                <p class="document-date">
+                  <span class="document-date-label">作成日時</span>
+                  <time datetime={page.created}>{formatDate(page.created)}</time>
+                </p>
+              {/if}
+              {#if page.updated}
+                <p class="document-date">
+                  <span class="document-date-label">更新日時</span>
+                  <time datetime={page.updated}>{formatDate(page.updated)}</time>
+                </p>
+              {/if}
+            {/snippet}
+            {#if page.isPost}
+              <div class="document-byline">
+                <img src={icons[page.icon ?? "document"]} alt="" width="32" height="32" />
+                <div class="document-byline-text">
+                  <p class="document-author">{page.author}</p>
+                  <div class="document-dates">{@render dates()}</div>
+                </div>
+              </div>
+            {:else}
+              {@render dates()}
             {/if}
           </header>
           <div class="prose">
             {@html page.body ?? ""}
           </div>
+          {#if page.isPost}
+            <footer class="document-footer">
+              {#if page.tags?.length}
+                <ul class="document-tags" aria-label="タグ">
+                  {#each page.tags as tag (tag)}
+                    <li><a href={tagSearchPath(tag)}>#{tag}</a></li>
+                  {/each}
+                </ul>
+              {/if}
+              <a
+                class="xp-button share-button"
+                href={shareUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="Xでシェア"
+              >
+                <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                  <path
+                    fill="#000"
+                    d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"
+                  />
+                </svg>
+                <span>シェア</span>
+              </a>
+            </footer>
+          {/if}
         </article>
+        {#if page.adjacent && (page.adjacent.previous || page.adjacent.next)}
+          <nav class="adjacent-posts" aria-label="前後の記事">
+            {#if page.adjacent.previous}
+              <a class="adjacent-link adjacent-previous" href={page.adjacent.previous.path} rel="prev">
+                <span class="adjacent-label">&lt; 前の記事</span>
+                <span class="adjacent-title">
+                  <img src={icons[page.adjacent.previous.icon]} alt="" width="24" height="24" />
+                  <span>{page.adjacent.previous.title}</span>
+                </span>
+              </a>
+            {/if}
+            {#if page.adjacent.next}
+              <a class="adjacent-link adjacent-next" href={page.adjacent.next.path} rel="next">
+                <span class="adjacent-label">次の記事 &gt;</span>
+                <span class="adjacent-title">
+                  <img src={icons[page.adjacent.next.icon]} alt="" width="24" height="24" />
+                  <span>{page.adjacent.next.title}</span>
+                </span>
+              </a>
+            {/if}
+          </nav>
+        {/if}
       {/if}
     </main>
 

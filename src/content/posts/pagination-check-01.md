@@ -3,6 +3,8 @@ title: ページ送り確認用の記事 1
 description: 記事一覧のページ送りを確認するために追加した短い記事です。
 created: 2026-10-05
 icon: document
+thumbnail: ./images/pagination-check.png
+thumbnailAlt: 青一色の確認用画像
 ---
 
 記事一覧のページ送りを確認するために追加した短い記事です。一覧の件数が12件を超えると、ページ番号のリンクが表示されます。

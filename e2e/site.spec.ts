@@ -193,6 +193,10 @@ test.describe("記事ページ", () => {
   }) => {
     await page.goto("/posts/abbey-road/");
     await expect(page.locator(".prose")).toHaveCSS("word-break", "normal");
+    for (const heading of await page.locator(".prose :is(h2, h3)").all()) {
+      await expect(heading).toHaveCSS("border-bottom-style", "none");
+      await expect(heading).toHaveCSS("text-decoration-line", "none");
+    }
     await expect(page).toHaveTitle("「アビイ・ロード」を2026年に聴く | ongaku.review");
     await expect(
       page.getByRole("heading", { level: 1, name: "「アビイ・ロード」を2026年に聴く" }),
@@ -216,7 +220,201 @@ test.describe("記事ページ", () => {
   });
 });
 
+test.describe("記事ページの構成", () => {
+  async function expectVerticalOrder(page: Page, selectors: string[]) {
+    const tops: number[] = [];
+    for (const selector of selectors) {
+      await expect(page.locator(selector)).toHaveCount(1);
+      tops.push(
+        await page.locator(selector).evaluate((element) => element.getBoundingClientRect().top),
+      );
+    }
+    for (let index = 1; index < tops.length; index++)
+      expect(tops[index], selectors[index]).toBeGreaterThan(tops[index - 1]!);
+  }
+
+  test("見出し画像・タイトル・著者欄・本文・タグ・シェア・前後の記事の順に並べる", async ({
+    page,
+  }) => {
+    await page.goto("/posts/pagination-check-01/");
+    await expectVerticalOrder(page, [
+      ".document-thumbnail",
+      ".document-header h1",
+      ".document-byline",
+      ".prose",
+      ".share-button",
+      ".adjacent-posts",
+    ]);
+
+    await page.goto("/posts/abbey-road/");
+    await expectVerticalOrder(page, [
+      ".document-header h1",
+      ".document-byline",
+      ".prose",
+      ".document-tags",
+      ".share-button",
+      ".adjacent-posts",
+    ]);
+  });
+
+  test("著者欄に記事のアイコン・著者名・日付を表示する", async ({ page }) => {
+    await page.goto("/posts/abbey-road/");
+    const byline = page.locator(".document-byline");
+    await expect(byline.locator("img")).toHaveAttribute("src", "/icons/silk/cd.svg");
+    await expect(byline.locator(".document-author")).toHaveText("mush1to");
+    await expect(byline.locator(".document-date")).toHaveCount(2);
+  });
+
+  test("見出し画像を1200:630で表示し、OGPとXのカードに使う", async ({ page }) => {
+    await page.goto("/posts/pagination-check-01/");
+    const image = page.locator(".document-thumbnail img");
+    await expect(image).toHaveAttribute("alt", "青一色の確認用画像");
+    await expect
+      .poll(() => image.evaluate((element: HTMLImageElement) => element.naturalWidth))
+      .toBe(1200);
+    const ratio = await image.evaluate((element) => {
+      const rect = element.getBoundingClientRect();
+      return rect.width / rect.height;
+    });
+    expect(ratio).toBeCloseTo(1200 / 630, 1);
+
+    const ogImage = await page.locator('meta[property="og:image"]').getAttribute("content");
+    expect(ogImage).toMatch(/^https:\/\/ongaku\.review\/assets\/content\/[0-9a-f]+\.png$/);
+    expect(new URL(ogImage!).pathname).toBe(await image.getAttribute("src"));
+    await expect(page.locator('meta[property="og:image:alt"]')).toHaveAttribute(
+      "content",
+      "青一色の確認用画像",
+    );
+    await expect(page.locator('meta[name="twitter:card"]')).toHaveAttribute(
+      "content",
+      "summary_large_image",
+    );
+  });
+
+  test("見出し画像のない記事はsummaryカードのままにする", async ({ page }) => {
+    await page.goto("/posts/abbey-road/");
+    await expect(page.locator(".document-thumbnail")).toHaveCount(0);
+    await expect(page.locator('meta[property="og:image"]')).toHaveCount(0);
+    await expect(page.locator('meta[name="twitter:card"]')).toHaveAttribute("content", "summary");
+  });
+
+  test("Xのシェアボタンでタイトルとcanonical URLを新しいタブに渡す", async ({ page }) => {
+    await page.goto("/posts/abbey-road/");
+    const share = page.getByRole("link", { name: "Xでシェア" });
+    await expect(share).toHaveAttribute("target", "_blank");
+    await expect(share.locator("svg path")).toHaveAttribute("fill", "#000");
+    const url = new URL((await share.getAttribute("href"))!);
+    expect(url.origin + url.pathname).toBe("https://x.com/intent/post");
+    expect(url.searchParams.get("text")).toBe("「アビイ・ロード」を2026年に聴く");
+    expect(url.searchParams.get("url")).toBe(
+      await page.locator('link[rel="canonical"]').getAttribute("href"),
+    );
+  });
+
+  test("タグのリンクからそのタグの記事を検索する", async ({ page }) => {
+    await page.goto("/posts/abbey-road/");
+    const tags = page.getByRole("list", { name: "タグ" });
+    await expect(tags.getByRole("link")).toHaveText(["#ロック", "#The Beatles", "#1960年代"]);
+    await tags.getByRole("link", { name: "#ロック" }).click();
+    await expect(page).toHaveURL(/\/search\/\?q=%23/);
+    await expect(page.getByRole("searchbox", { name: "キーワード" })).toHaveValue("#ロック");
+    await expect(page.getByRole("status")).toHaveText("タグ「#ロック」の記事：3件");
+    await expect(page.locator("[data-search-results] a")).toHaveText([
+      "「アビイ・ロード」を2026年に聴く",
+      "「OK Computer」の静かな怒り",
+      "「In Rainbows」の温度",
+    ]);
+  });
+
+  test("タグ検索は全角の#と表記ゆれを同じタグとして扱う", async ({ page }) => {
+    await page.goto("/search/?q=" + encodeURIComponent("＃ｼﾞｬｽﾞ"));
+    await expect(page.getByRole("status")).toHaveText("タグ「#ｼﾞｬｽﾞ」の記事：1件");
+    await expect(page.getByRole("link", { name: "「Kind of Blue」の余白" })).toBeVisible();
+    await page.goto("/search/?q=" + encodeURIComponent("#存在しないタグ"));
+    await expect(page.getByRole("status")).toHaveText(
+      "タグ「#存在しないタグ」の記事は見つかりませんでした。",
+    );
+  });
+
+  test("前後の記事へのリンクを表示する", async ({ page }) => {
+    await page.goto("/posts/abbey-road/");
+    const adjacent = page.getByRole("navigation", { name: "前後の記事" });
+    const previous = adjacent.locator("a[rel='prev']");
+    await expect(previous).toContainText("前の記事");
+    const previousPath = await previous.getAttribute("href");
+    await expect(adjacent.locator("a[rel='next']")).toHaveCount(0);
+
+    await page.goto(previousPath!);
+    const next = page.getByRole("navigation", { name: "前後の記事" }).locator("a[rel='next']");
+    await expect(next).toHaveAttribute("href", "/posts/abbey-road/");
+    await expect(next).toContainText("「アビイ・ロード」を2026年に聴く");
+  });
+
+  test("いちばん古い記事は次の記事だけを右の列に表示する", async ({ page }) => {
+    await page.goto("/posts/pagination-check-01/");
+    const adjacent = page.getByRole("navigation", { name: "前後の記事" });
+    await expect(adjacent.locator("a[rel='prev']")).toHaveCount(0);
+    const next = adjacent.locator("a[rel='next']");
+    await expect(next).toHaveAttribute("href", "/posts/pagination-check-02/");
+    const [navBox, nextBox] = await Promise.all([adjacent.boundingBox(), next.boundingBox()]);
+    expect(nextBox!.x).toBeGreaterThan(navBox!.x + navBox!.width / 3);
+  });
+});
+
+test.describe("記事ページのスマートフォン表示", () => {
+  test.use({ viewport: { width: 390, height: 844 } });
+
+  test("横にスクロールせず、見出し画像をペインの幅いっぱいに広げる", async ({ page }) => {
+    await page.goto("/posts/pagination-check-01/");
+    const overflow = await page.evaluate(
+      () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+    );
+    expect(overflow).toBe(0);
+    const [pane, image] = await Promise.all([
+      page.locator(".document").evaluate((element) => {
+        const rect = element.getBoundingClientRect();
+        const style = getComputedStyle(element);
+        return {
+          left: rect.left + parseFloat(style.borderLeftWidth),
+          right: rect.right - parseFloat(style.borderRightWidth),
+        };
+      }),
+      page.locator(".document-thumbnail img").boundingBox(),
+    ]);
+    expect(Math.abs(image!.x - pane.left)).toBeLessThanOrEqual(1);
+    expect(Math.abs(image!.x + image!.width - pane.right)).toBeLessThanOrEqual(1);
+  });
+
+  test("前後の記事を2列で並べる", async ({ page }) => {
+    await page.goto("/posts/abbey-road/");
+    const previousPath = await page.locator(".adjacent-posts a[rel='prev']").getAttribute("href");
+    await page.goto(previousPath!);
+    const [previous, next] = await Promise.all([
+      page.locator(".adjacent-posts a[rel='prev']").boundingBox(),
+      page.locator(".adjacent-posts a[rel='next']").boundingBox(),
+    ]);
+    expect(Math.abs(previous!.y - next!.y)).toBeLessThanOrEqual(1);
+    expect(next!.x).toBeGreaterThan(previous!.x + previous!.width - 1);
+    const overflow = await page.evaluate(
+      () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+    );
+    expect(overflow).toBe(0);
+  });
+});
+
 test.describe("Aboutページ", () => {
+  test("記事ページだけの要素を表示しない", async ({ page }) => {
+    await page.goto("/about/");
+    for (const selector of [
+      ".document-thumbnail",
+      ".document-byline",
+      ".document-tags",
+      ".share-button",
+      ".adjacent-posts",
+    ])
+      await expect(page.locator(selector)).toHaveCount(0);
+  });
+
   test("Aboutを現在のページとして示す", async ({ page }) => {
     await page.goto("/about/");
     await expect(page).toHaveTitle("About | ongaku.review");

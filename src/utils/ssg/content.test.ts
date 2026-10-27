@@ -69,6 +69,118 @@ describe("loadDocs", () => {
   });
 });
 
+describe("thumbnail", () => {
+  async function createRootWithImage(frontmatter: string, image = "images/cover.png") {
+    const root = await createRoot({ "first.md": post(frontmatter) });
+    const imagePath = path.join(root, "src/content/posts", image);
+    await mkdir(path.dirname(imagePath), { recursive: true });
+    await writeFile(imagePath, "");
+    return root;
+  }
+
+  it("記事ファイルからの相対パスで画像を読み込み、記事URLを基準に公開パスを決める", async () => {
+    const root = await createRootWithImage(
+      "thumbnail: ./images/cover.png\nthumbnailAlt: ジャケット写真",
+    );
+
+    const [doc] = await loadDocs(root);
+
+    expect(doc?.thumbnail).toEqual({
+      sourcePath: path.join(root, "src/content/posts/images/cover.png"),
+      publicPath: "/posts/first/images/cover.png",
+      alt: "ジャケット写真",
+    });
+  });
+
+  it("thumbnailAltを省略すると代替テキストを空にする", async () => {
+    const root = await createRootWithImage("thumbnail: ./images/cover.png");
+
+    expect((await loadDocs(root))[0]?.thumbnail?.alt).toBe("");
+  });
+
+  it("thumbnailを省略すると見出し画像を設定しない", async () => {
+    const root = await createRoot({ "first.md": post("title: 画像なし") });
+
+    expect((await loadDocs(root))[0]?.thumbnail).toBeUndefined();
+  });
+
+  it("存在しない画像を拒否する", async () => {
+    const root = await createRoot({ "first.md": post("thumbnail: ./images/missing.png") });
+
+    await expect(loadDocs(root)).rejects.toThrow(
+      "src/content/posts/first.md: thumbnail の画像 ./images/missing.png が見つかりません",
+    );
+  });
+
+  it.each(["/images/cover.png", "https://example.com/cover.png"])(
+    "相対パスでないthumbnail: %sを拒否する",
+    async (value) => {
+      const root = await createRootWithImage(`thumbnail: ${value}`);
+
+      await expect(loadDocs(root)).rejects.toThrow(
+        "src/content/posts/first.md: thumbnail は記事ファイルからの相対パスで指定してください",
+      );
+    },
+  );
+
+  it("対応していない拡張子を拒否する", async () => {
+    const root = await createRootWithImage("thumbnail: ./images/cover.gif", "images/cover.gif");
+
+    await expect(loadDocs(root)).rejects.toThrow(
+      "src/content/posts/first.md: thumbnail には .jpg・.jpeg・.png・.webp のいずれかの画像を指定してください",
+    );
+  });
+
+  it("src/contentの外を指す画像を拒否する", async () => {
+    const root = await createRoot({ "first.md": post("thumbnail: ../../../outside.png") });
+    await writeFile(path.join(root, "outside.png"), "");
+
+    await expect(loadDocs(root)).rejects.toThrow(
+      "src/content/posts/first.md: thumbnail には src/content 内の画像を指定してください",
+    );
+  });
+});
+
+describe("tags", () => {
+  it("先頭の#を取り除き、重複をまとめる", async () => {
+    const root = await createRoot({
+      "first.md": post(
+        'tags:\n  - "#ロック"\n  - ロック\n  - "＃ジャズ"\n  - " "\n  - ＲＯＣＫ\n  - ROCK',
+      ),
+    });
+
+    expect((await loadDocs(root))[0]?.tags).toEqual(["ロック", "ジャズ", "ＲＯＣＫ"]);
+  });
+
+  it("tagsを省略すると空の配列になる", async () => {
+    const root = await createRoot({ "first.md": post("title: タグなし") });
+
+    expect((await loadDocs(root))[0]?.tags).toEqual([]);
+  });
+
+  it.each(["ロック", "[1, 2]", "{}"])("文字列の配列でないtags: %sを拒否する", async (value) => {
+    const root = await createRoot({ "first.md": post(`tags: ${value}`) });
+
+    await expect(loadDocs(root)).rejects.toThrow(
+      "src/content/posts/first.md: tags は文字列の配列で指定してください",
+    );
+  });
+});
+
+describe("author", () => {
+  it("authorを省略するとサイトの著者名を使う", async () => {
+    const root = await createRoot({ "first.md": post("title: 著者なし") });
+
+    expect((await loadDocs(root))[0]?.author).toBe("mush1to");
+  });
+
+  it("authorを指定するとその名前を使う", async () => {
+    const root = await createRoot({ "first.md": post("author: ゲスト") });
+
+    expect((await loadDocs(root))[0]?.author).toBe("ゲスト");
+  });
+});
+
 describe("loadAboutPage", () => {
   it("固定ページと同名の記事を別々のURLで読み込む", async () => {
     const root = await createRoot({ "about.md": post("title: Aboutの記事") });

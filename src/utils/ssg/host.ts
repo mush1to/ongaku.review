@@ -1,3 +1,4 @@
+import path from "node:path";
 import type { Component } from "svelte";
 import {
   rewriteCollectionAssetUrls,
@@ -10,7 +11,7 @@ import {
   type RenderSvelteHtmlHostResult,
 } from "@ox-content/vite-plugin-svelte";
 import { searchPath, site } from "../../config/site";
-import type { PageData, Pagination } from "../../pages/page-data";
+import type { AdjacentPost, PageData, Pagination } from "../../pages/page-data";
 import { normalizeSearchPath } from "../search-path";
 import { listPosts, loadAboutPage, loadDocs, type DocPage } from "./content";
 import { preserveFullWidthSpaces } from "./whitespace";
@@ -74,7 +75,7 @@ function homePages(posts: readonly DocPage[]): PageData[] {
   });
 }
 
-const docPage = (doc: DocPage, isPost: boolean): PageData => ({
+const aboutPage = (doc: DocPage): PageData => ({
   kind: "page",
   path: doc.path,
   title: doc.title,
@@ -82,17 +83,39 @@ const docPage = (doc: DocPage, isPost: boolean): PageData => ({
   breadcrumbs: [{ label: doc.title }],
   created: doc.created,
   updated: doc.updated,
-  isPost,
+  isPost: false,
 });
 
-const searchPage = (docs: readonly DocPage[]): PageData => ({
+const adjacentPost = (doc: DocPage | undefined): AdjacentPost | undefined =>
+  doc && { path: doc.path, title: doc.title, icon: doc.icon };
+
+/** `posts` is in `listPosts` order, so the older post follows each entry. */
+const postPage = (posts: readonly DocPage[], index: number): PageData => {
+  const doc = posts[index]!;
+  return {
+    ...aboutPage(doc),
+    isPost: true,
+    icon: doc.icon,
+    author: doc.author,
+    tags: doc.tags,
+    adjacent: {
+      previous: adjacentPost(posts[index + 1]),
+      next: adjacentPost(index > 0 ? posts[index - 1] : undefined),
+    },
+  };
+};
+
+const searchPage = (posts: readonly DocPage[]): PageData => ({
   kind: "search",
   path: searchPath,
   title: "検索",
   description: site.title + " の記事を検索します。",
   breadcrumbs: [{ label: "検索" }],
   searchPages: Object.fromEntries(
-    docs.map((doc) => [normalizeSearchPath(doc.indexPath), { path: doc.path, icon: doc.icon }]),
+    posts.map((doc) => [
+      normalizeSearchPath(doc.indexPath),
+      { path: doc.path, title: doc.title, icon: doc.icon, tags: doc.tags },
+    ]),
   ),
 });
 
@@ -137,8 +160,23 @@ async function markdown(ctx: OxContentCustomHostBaseContext, source: string, doc
   };
 }
 
-async function renderPage(ctx: OxContentCustomHostBaseContext, page: PageData, source?: DocPage) {
+async function renderPage(
+  ctx: OxContentCustomHostBaseContext,
+  basePage: PageData,
+  source?: DocPage,
+) {
   const body = source ? await markdown(ctx, source.source, source.documentPath) : undefined;
+  const manifest = await ctx.assets.collectionManifest();
+  const thumbnail = source?.thumbnail;
+  const thumbnailSrc =
+    thumbnail &&
+    (manifest?.assets.find((asset) => path.resolve(asset.sourcePath) === thumbnail.sourcePath)
+      ?.contentPath ??
+      thumbnail.publicPath);
+  const page: PageData =
+    thumbnail && thumbnailSrc && basePage.isPost
+      ? { ...basePage, thumbnail: { src: thumbnailSrc, alt: thumbnail.alt } }
+      : basePage;
   const pageModule = (await ctx.loadModule("/src/pages/Page.svelte")) as {
     default: Component<{ page: PageData }>;
   };
@@ -214,7 +252,15 @@ async function renderPage(ctx: OxContentCustomHostBaseContext, page: PageData, s
     escapeHtml(canonical) +
     '">' +
     '<meta property="og:type" content="website">' +
-    '<meta name="twitter:card" content="summary">' +
+    (page.thumbnail
+      ? '<meta property="og:image" content="' +
+        escapeHtml(new URL(page.thumbnail.src, site.url).href) +
+        '">' +
+        (page.thumbnail.alt
+          ? '<meta property="og:image:alt" content="' + escapeHtml(page.thumbnail.alt) + '">'
+          : "") +
+        '<meta name="twitter:card" content="summary_large_image">'
+      : '<meta name="twitter:card" content="summary">') +
     '<meta name="twitter:title" content="' +
     escapeHtml(title) +
     '">' +
@@ -229,7 +275,6 @@ async function renderPage(ctx: OxContentCustomHostBaseContext, page: PageData, s
     "</head><body>" +
     rendered.body +
     "</body></html>";
-  const manifest = await ctx.assets.collectionManifest();
   if (manifest)
     html = rewriteCollectionAssetUrls({ html, pagePath: page.path, manifest, document: true }).html;
   return {
@@ -246,23 +291,25 @@ const host: OxContentCustomHostModule = {
   async routes(ctx) {
     const docs = await ctx.memo("content", () => loadDocs(ctx.root));
     docs.forEach(assertRoutable);
-    const routes: OxContentCustomHostRoute[] = homePages(listPosts(docs)).map((page) => ({
+    const posts = listPosts(docs);
+    const routes: OxContentCustomHostRoute[] = homePages(posts).map((page) => ({
       path: page.path,
       title: page.title,
       description: page.description,
       render: (context) => renderPage(context, page),
     }));
-    for (const doc of docs)
+    posts.forEach((doc, index) =>
       routes.push({
         path: doc.path,
         title: doc.title,
         description: doc.description,
         inputPath: doc.documentPath,
         source: doc.source,
-        render: (context) => renderPage(context, docPage(doc, true), doc),
-      });
+        render: (context) => renderPage(context, postPage(posts, index), doc),
+      }),
+    );
     const about = await ctx.memo("about", () => loadAboutPage(ctx.root));
-    const search = searchPage(docs);
+    const search = searchPage(posts);
     routes.push(
       {
         path: about.path,
@@ -270,7 +317,7 @@ const host: OxContentCustomHostModule = {
         description: about.description,
         inputPath: about.documentPath,
         source: about.source,
-        render: (context) => renderPage(context, docPage(about, false), about),
+        render: (context) => renderPage(context, aboutPage(about), about),
       },
       {
         path: search.path,

@@ -3,6 +3,10 @@ title: 「アビイ・ロード」を2026年に聴く
 description: The Beatles「Abbey Road」を久しぶりに通して聴き、曲順と録音の面白さを確かめた記録です。
 created: 2026-10-25
 icon: cd
+tags:
+  - ロック
+  - The Beatles
+  - 1960年代
 ---
 
 「Abbey Road」は1969年に発表されたThe Beatlesのアルバムです。学生の頃は「Here Comes the Sun」ばかり聴いていましたが、久しぶりにA面からB面まで通して聴くと、曲順の作り方に引き込まれました。

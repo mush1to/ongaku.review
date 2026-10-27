@@ -46,6 +46,11 @@ export default defineConfig(async ({ command, mode }) => {
             documentPath: doc.documentPath,
             pagePath: doc.path,
           })),
+          extraAssets: docs.flatMap(({ thumbnail }) =>
+            thumbnail
+              ? [{ sourcePath: thumbnail.sourcePath, publicPath: thumbnail.publicPath }]
+              : [],
+          ),
         });
         if (result.diagnostics.length)
           throw new Error(result.diagnostics.map((item) => item.message).join("\n"));

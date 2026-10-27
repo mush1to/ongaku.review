@@ -19,6 +19,7 @@ export const site = {
   name: "ongaku.review",
   url: "https://ongaku.review",
   description: "音楽が好き。",
+  author: "mush1to",
   themeStorageKey: "ongaku.review.theme",
   themeColor: "#0b55e0",
   postsPerPage: 12,
