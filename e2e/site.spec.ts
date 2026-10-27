@@ -241,6 +241,86 @@ test.describe("記事ページ", () => {
   });
 });
 
+test.describe("タグページ", () => {
+  const currentPath = (page: Page) => {
+    const url = new URL(page.url());
+    return url.pathname + decodeURIComponent(url.hash);
+  };
+
+  test("記事のタグからそのタグの記事をトップページの一覧で開く", async ({ page }) => {
+    await page.goto("/posts/abbey-road/");
+    const tags = page.getByRole("list", { name: "タグ" });
+    await expect(tags.getByRole("link")).toHaveText(["#ロック", "#The Beatles", "#1960年代"]);
+    await tags.getByRole("link", { name: "#ロック" }).click();
+
+    await expect.poll(() => currentPath(page)).toBe("/#ロック");
+    await expect(page).toHaveTitle("#ロック | ongaku.review");
+    await expect(mainNavigation(page).getByRole("link", { name: "Home" })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+    await expect(page.getByRole("navigation", { name: "現在地" })).toHaveText("/#ロック");
+
+    const list = page.getByRole("table", { name: "タグ「#ロック」の記事" });
+    await expect(list.getByRole("columnheader")).toHaveText(["名前", "作成日時"]);
+    await expect(list.locator(".file-link")).toHaveText([
+      "「アビイ・ロード」を2026年に聴く",
+      "「OK Computer」の静かな怒り",
+      "「In Rainbows」の温度",
+    ]);
+    await expect(list.locator(".file-link").first()).toHaveAttribute("href", "/posts/abbey-road/");
+    await expect(list.locator(".file-date time").first()).toHaveText("2026/10/25");
+    await expect(page.getByRole("navigation", { name: "ページ送り" })).toBeHidden();
+  });
+
+  test("タグページのURLを直接開く", async ({ page }) => {
+    await page.goto("/#ジャズ");
+    await expect.poll(() => currentPath(page)).toBe("/#ジャズ");
+    await expect(page.getByRole("navigation", { name: "現在地" })).toHaveText("/#ジャズ");
+    await expect(
+      page.getByRole("table", { name: "タグ「#ジャズ」の記事" }).locator(".file-link"),
+    ).toHaveText(["「Kind of Blue」の余白"]);
+  });
+
+  test("全角の#と表記ゆれを同じタグとして扱う", async ({ page }) => {
+    await page.goto("/#" + encodeURIComponent("＃ｼﾞｬｽﾞ"));
+    await expect(
+      page.getByRole("table", { name: "タグ「#ｼﾞｬｽﾞ」の記事" }).locator(".file-link"),
+    ).toHaveText(["「Kind of Blue」の余白"]);
+  });
+
+  test("記事のないタグでは一覧が空になる", async ({ page }) => {
+    await page.goto("/#存在しないタグ");
+    await expect(page.locator(".file-table tbody")).toHaveText(
+      "タグ「#存在しないタグ」の記事はありません。",
+    );
+    await expect(page.getByRole("navigation", { name: "現在地" })).toHaveText("/#存在しないタグ");
+  });
+
+  test("アドレスバーのフォルダからタグなしのトップページに戻る", async ({ page }) => {
+    await page.goto("/#ロック");
+    await expect(page.locator(".file-link")).toHaveCount(3);
+    await page
+      .getByRole("navigation", { name: "現在地" })
+      .getByRole("link", { name: "ホーム" })
+      .click();
+
+    await expect.poll(() => currentPath(page)).toBe("/");
+    await expect(page.getByRole("navigation", { name: "現在地" })).toHaveText("/");
+    await expect(page.getByRole("table", { name: "記事一覧" })).toBeVisible();
+    await expect(page.locator(".file-table tbody tr")).toHaveCount(12);
+    await expect(page.getByRole("navigation", { name: "ページ送り" })).toBeVisible();
+    await expect(page).toHaveTitle("ongaku.review");
+  });
+
+  test("ページ内リンクの#はタグページとして扱わない", async ({ page }) => {
+    await page.goto("/#main");
+    await expect(page.getByRole("table", { name: "記事一覧" })).toBeVisible();
+    await expect(page.locator(".file-table tbody tr")).toHaveCount(12);
+    await expect(page.getByRole("navigation", { name: "現在地" })).toHaveText("/");
+  });
+});
+
 test.describe("記事ページの構成", () => {
   async function expectVerticalOrder(page: Page, selectors: string[]) {
     const tops: number[] = [];
@@ -331,30 +411,6 @@ test.describe("記事ページの構成", () => {
     expect(url.searchParams.get("url")).toBe(
       await page.locator('link[rel="canonical"]').getAttribute("href"),
     );
-  });
-
-  test("タグを押すと、ページを移動せずに検索ウィンドウでそのタグの記事を検索する", async ({
-    page,
-  }) => {
-    await page.goto("/posts/abbey-road/");
-    const tags = page.getByRole("list", { name: "タグ" });
-    await expect(tags.getByRole("button")).toHaveText(["#ロック", "#The Beatles", "#1960年代"]);
-    await tags.getByRole("button", { name: "#ロック" }).click();
-    const searchWindow = page.getByRole("dialog", { name: "検索" });
-    const searchbox = searchWindow.getByRole("searchbox", { name: "キーワード" });
-    await expect(searchbox).toHaveValue("#ロック");
-    await expect(searchWindow.getByRole("status")).toHaveText("タグ「#ロック」の記事：3件");
-    await expect(searchWindow.locator("[data-search-results] a")).toHaveText([
-      "「アビイ・ロード」を2026年に聴く",
-      "「OK Computer」の静かな怒り",
-      "「In Rainbows」の温度",
-    ]);
-    await expect(page).toHaveURL(/\/posts\/abbey-road\/$/);
-
-    await searchWindow.getByRole("button", { name: "閉じる" }).click();
-    await tags.getByRole("button", { name: "#The Beatles" }).click();
-    await expect(searchbox).toHaveValue("#The Beatles");
-    await expect(searchWindow.getByRole("status")).toHaveText("タグ「#The Beatles」の記事：1件");
   });
 
   test("タグ検索は全角の#と表記ゆれを同じタグとして扱う", async ({ page }) => {

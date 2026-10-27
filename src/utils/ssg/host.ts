@@ -69,6 +69,17 @@ function homePages(posts: readonly DocPage[]): PageData[] {
       posts: posts
         .slice((number - 1) * size, number * size)
         .map(({ path, title, created, icon }) => ({ path, title, created, icon })),
+      // The tag page lives at "/#タグ名", so only the first page needs every post.
+      taggedPosts:
+        number === 1
+          ? posts.map((post) => ({
+              path: post.path,
+              title: post.title,
+              created: post.created,
+              icon: post.icon,
+              tags: post.tags,
+            }))
+          : undefined,
       pagination,
     };
   });

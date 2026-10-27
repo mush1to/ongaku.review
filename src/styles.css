@@ -403,6 +403,11 @@ main {
   display: none;
 }
 
+.pagination[hidden],
+.pane-spacer[hidden] {
+  display: none;
+}
+
 .file-table {
   width: 100%;
   border-collapse: collapse;
@@ -841,7 +846,7 @@ body:has(.search-window[open]) .window > .title-bar {
   list-style: none;
 }
 
-.document-tags button {
+.document-tags a {
   display: inline-flex;
   align-items: center;
   min-height: 2.75rem;
@@ -850,15 +855,14 @@ body:has(.search-window[open]) .window > .title-bar {
   border-radius: 0.25rem;
   background: #fff;
   color: var(--color-text);
-  font: inherit;
-  cursor: pointer;
+  text-decoration: none;
 }
 
-.document-tags button:hover {
+.document-tags a:hover {
   background: var(--xp-hover);
 }
 
-.document-tags button:focus-visible {
+.document-tags a:focus-visible {
   outline: 1px dotted #000;
   outline-offset: -4px;
 }

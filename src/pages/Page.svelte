@@ -14,6 +14,8 @@
       : 0,
   );
   const formatDate = (date: string) => date.replaceAll("-", "/");
+  // Tags open the home page's list at "/#タグ名".
+  const tagPath = (tag: string) => "/#" + encodeURIComponent(tag);
   const shareUrl = $derived(
     "https://x.com/intent/post?" +
       new URLSearchParams({ text: page.title, url: site.url + page.path }).toString(),
@@ -94,7 +96,10 @@
       {#if page.kind === "home"}
         <div class="list-area">
           <div class="pane">
-            <table class="file-table">
+            <table
+              class="file-table"
+              data-tag-posts={page.taggedPosts ? JSON.stringify(page.taggedPosts) : undefined}
+            >
               <caption class="visually-hidden">記事一覧</caption>
               <thead>
                 <tr>
@@ -208,17 +213,7 @@
               {#if page.tags?.length}
                 <ul class="document-tags" aria-label="タグ">
                   {#each page.tags as tag (tag)}
-                    <li>
-                      <button
-                        type="button"
-                        aria-haspopup="dialog"
-                        aria-controls="search-window"
-                        data-search-open
-                        data-search-query={"#" + tag}
-                      >
-                        #{tag}
-                      </button>
-                    </li>
+                    <li><a href={tagPath(tag)}>#{tag}</a></li>
                   {/each}
                 </ul>
               {/if}

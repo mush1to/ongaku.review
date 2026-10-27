@@ -38,6 +38,9 @@ if (searchWindow && searchForm && searchInput) {
   });
 }
 
+const tagTable = document.querySelector<HTMLTableElement>("table.file-table[data-tag-posts]");
+if (tagTable) void import("./tags").then(({ initTagView }) => initTagView(tagTable));
+
 const copyIcons = {
   idle: '<rect x="9" y="9" width="11" height="11" rx="2"/><path d="M15 9V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h4"/>',
   success: '<path d="m5 12 4 4L19 6"/>',
