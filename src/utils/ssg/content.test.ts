@@ -2,6 +2,10 @@ import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
+import {
+  planCollectionAssetsFromDocuments,
+  rewriteCollectionAssetUrls,
+} from "@ox-content/vite-plugin";
 import { listPosts, loadAboutPage, loadDocs, loadSearchIndex, loadSearchPages } from "./content";
 
 const roots: string[] = [];
@@ -31,8 +35,8 @@ describe("loadDocs", () => {
     });
 
     expect((await loadDocs(root)).map((doc) => doc.path)).toEqual([
-      "/posts/default/",
-      "/posts/published/",
+      "/posts/default",
+      "/posts/published",
     ]);
   });
 
@@ -104,6 +108,46 @@ describe("thumbnail", () => {
     expect((await loadDocs(root))[0]?.thumbnail).toBeUndefined();
   });
 
+  it("URLに特殊文字を含む見出し画像をcollection assetとして解決する", async () => {
+    const filename = "cover % # 日本語.png";
+    const root = await createRoot({
+      "first.md": post(`thumbnail: "./images/${filename}"`) + "\n![本文画像](./images/body.png)\n",
+    });
+    const images = path.join(root, "src/content/posts/images");
+    await mkdir(images, { recursive: true });
+    await writeFile(path.join(images, filename), "");
+    await writeFile(path.join(images, "body.png"), "");
+    const [doc] = await loadDocs(root);
+    const thumbnail = doc!.thumbnail!;
+    const planned = await planCollectionAssetsFromDocuments({
+      root,
+      contentRoot: "src/content",
+      documents: [{ documentPath: doc!.documentPath, pagePath: doc!.path, source: doc!.source }],
+      extraAssets: [{ sourcePath: thumbnail.sourcePath, publicPath: thumbnail.publicPath }],
+    });
+    const asset = planned.manifest.assets.find(
+      (entry) => path.resolve(entry.sourcePath) === thumbnail.sourcePath,
+    );
+    const bodyAsset = planned.manifest.assets.find(
+      (entry) => entry.sourcePath === path.join(images, "body.png"),
+    );
+    const rewritten = rewriteCollectionAssetUrls({
+      html: `<img src="${thumbnail.publicPath}">` + '<img src="/posts/first/images/body.png">',
+      pagePath: doc!.path + "/",
+      manifest: planned.manifest,
+      document: true,
+    });
+
+    expect(planned.diagnostics).toEqual([]);
+    expect(thumbnail.publicPath).toBe(
+      "/posts/first/images/cover%20%25%20%23%20%E6%97%A5%E6%9C%AC%E8%AA%9E.png",
+    );
+    expect(asset?.publicPaths).toContain(thumbnail.publicPath);
+    expect(rewritten.html).toContain(asset!.contentPath);
+    expect(bodyAsset?.publicPaths).toContain("/posts/first/images/body.png");
+    expect(rewritten.html).toContain(bodyAsset!.contentPath);
+  });
+
   it("存在しない画像を拒否する", async () => {
     const root = await createRoot({ "first.md": post("thumbnail: ./images/missing.png") });
 
@@ -165,6 +209,20 @@ describe("tags", () => {
       "src/content/posts/first.md: tags は文字列の配列で指定してください",
     );
   });
+
+  it("unsafeなタグ名を記事ファイル付きで拒否する", async () => {
+    const root = await createRoot({ "invalid.md": post('tags:\n  - ".."') });
+
+    await expect(loadDocs(root)).rejects.toThrow(
+      "src/content/posts/invalid.md: タグ名には空のパス要素、「.」「..」、制御文字、バックスラッシュを使用できません",
+    );
+  });
+
+  it("スラッシュを含む表現可能なタグを許可する", async () => {
+    const root = await createRoot({ "valid.md": post("tags:\n  - AC/DC") });
+
+    expect((await loadDocs(root))[0]?.tags).toEqual(["AC/DC"]);
+  });
 });
 
 describe("author", () => {
@@ -190,11 +248,11 @@ describe("loadAboutPage", () => {
     );
 
     expect(await loadAboutPage(root)).toMatchObject({
-      path: "/about/",
+      path: "/about",
       title: "About",
       description: "固定ページ",
     });
-    expect((await loadDocs(root)).map((doc) => doc.path)).toEqual(["/posts/about/"]);
+    expect((await loadDocs(root)).map((doc) => doc.path)).toEqual(["/posts/about"]);
   });
 });
 
@@ -223,10 +281,10 @@ describe("loadSearchPages", () => {
     });
 
     const pages = JSON.parse(await loadSearchPages(root));
-    expect(Object.keys(pages)).toEqual(["/new/", "/old/"]);
+    expect(Object.keys(pages)).toEqual(["/new", "/old"]);
     expect(pages).toEqual({
-      "/new/": { path: "/posts/new/", title: "新しい記事", icon: "cd", tags: [] },
-      "/old/": { path: "/posts/old/", title: "古い記事", icon: "document", tags: ["ロック"] },
+      "/new": { path: "/posts/new", title: "新しい記事", icon: "cd", tags: [] },
+      "/old": { path: "/posts/old", title: "古い記事", icon: "document", tags: ["ロック"] },
     });
   });
 });

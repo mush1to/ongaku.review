@@ -12,10 +12,6 @@ export interface PostSummary {
   icon: PostIcon;
 }
 
-export interface TaggedPost extends PostSummary {
-  tags: string[];
-}
-
 export interface Thumbnail {
   src: string;
   alt: string;
@@ -35,7 +31,7 @@ export interface Pagination {
 }
 
 export interface PageData {
-  kind: "home" | "page" | "404";
+  kind: "home" | "tag" | "page" | "404";
   path: string;
   title: string;
   description: string;
@@ -51,7 +47,6 @@ export interface PageData {
   /** `previous` is the older post and `next` the newer one. */
   adjacent?: { previous?: AdjacentPost; next?: AdjacentPost };
   posts?: PostSummary[];
-  /** Every published post with its tags, so the home page can show `/#タグ名`. */
-  taggedPosts?: TaggedPost[];
+  tag?: string;
   pagination?: Pagination;
 }

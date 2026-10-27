@@ -8,7 +8,7 @@ export interface NavigationLink {
 
 const navigation: readonly NavigationLink[] = [
   { path: "/", label: "Home", icon: "house" },
-  { path: "/about/", label: "About", icon: "information" },
+  { path: "/about", label: "About", icon: "information" },
 ];
 
 export const site = {

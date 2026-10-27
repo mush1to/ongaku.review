@@ -17,13 +17,13 @@ describe("preserveFullWidthSpaces", () => {
 
   it("引用・箇条書き・見出し・強調・リンクの文字を残す", async () => {
     const source =
-      "> 　引用\n\n- 　箇条書き\n\n## 　見出し\n\n　**強調**と[　ラベル](/posts/sample/)";
+      "> 　引用\n\n- 　箇条書き\n\n## 　見出し\n\n　**強調**と[　ラベル](/posts/sample)";
     const result = await render(source);
     expect(result.html).toContain("<blockquote>\n<p>　引用</p>");
     expect(result.html).toContain("<li>　箇条書き</li>");
     expect(result.html).toContain("　見出し</h2>");
     expect(result.html).toContain(
-      '<p>　<strong>強調</strong>と<a href="/posts/sample/">　ラベル</a></p>',
+      '<p>　<strong>強調</strong>と<a href="/posts/sample">　ラベル</a></p>',
     );
   });
 

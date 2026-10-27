@@ -4,7 +4,7 @@ import { parse } from "yaml";
 import { buildSearchIndex } from "@ox-content/vite-plugin";
 import { defaultPostIcon, isPostIcon, postIcons, type PostIcon } from "../../config/icons";
 import { site } from "../../config/site";
-import { normalizeSearchPath, normalizeTag } from "../search-path";
+import { normalizeSearchPath, normalizeTag, tagRoutePath } from "../search-path";
 
 export const contentDirectory = "src/content/posts";
 export const aboutDocument = "src/content/about.mdx";
@@ -64,9 +64,10 @@ function contentPath(relativePath: string): string {
 
 function routePath(relativePath: string): string {
   const normalized = contentPath(relativePath).slice(1);
+  const segments = normalized.split("/");
   if (normalized === "index") return "/";
-  if (normalized.endsWith("/index")) return "/posts/" + normalized.slice(0, -"index".length);
-  return "/posts/" + normalized + "/";
+  if (normalized.endsWith("/index")) segments.pop();
+  return "/posts/" + segments.map(encodeURIComponent).join("/");
 }
 
 function readDate(value: unknown, file: string, field: string): string | undefined {
@@ -128,11 +129,15 @@ async function readThumbnail(
     throw new Error(`${file}: thumbnail の画像 ${reference} が見つかりません`);
   if (alt !== undefined && alt !== null && typeof alt !== "string")
     throw new Error(`${file}: thumbnailAlt は文字列で指定してください`);
+  const assetBase = pagePath === "/" ? "/" : pagePath + "/";
+  const encodedReference = reference
+    .replaceAll("\\", "/")
+    .split("/")
+    .map(encodeURIComponent)
+    .join("/");
   return {
     sourcePath,
-    publicPath: decodeURI(
-      new URL(reference.replaceAll("\\", "/"), "https://local" + pagePath).pathname,
-    ),
+    publicPath: new URL(encodedReference, "https://local" + assetBase).pathname,
     alt: typeof alt === "string" ? alt.trim() : "",
   };
 }
@@ -148,7 +153,16 @@ function readTags(value: unknown, file: string): string[] {
       .replace(/^[#＃]+/, "")
       .trim();
     const key = normalizeTag(name);
-    if (key && !tags.has(key)) tags.set(key, name);
+    if (key && !tags.has(key)) {
+      try {
+        tagRoutePath(key);
+      } catch {
+        throw new Error(
+          `${file}: タグ名には空のパス要素、「.」「..」、制御文字、バックスラッシュを使用できません`,
+        );
+      }
+      tags.set(key, name);
+    }
   }
   return [...tags.values()];
 }
@@ -214,7 +228,7 @@ export async function loadAboutPage(root: string): Promise<DocPage> {
   const source = await readFile(documentPath, "utf8");
   const frontmatter = readFrontmatter(source);
   return {
-    path: "/about/",
+    path: "/about",
     indexPath: "/about",
     title: typeof frontmatter.title === "string" ? frontmatter.title.trim() : "About",
     description: typeof frontmatter.description === "string" ? frontmatter.description.trim() : "",

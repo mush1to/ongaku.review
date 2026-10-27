@@ -1,0 +1,4 @@
+/about/ /about 301
+/page/*/ /page/:splat 301
+/posts/*/ /posts/:splat 301
+/tags/*/ /tags/:splat 301

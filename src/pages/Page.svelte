@@ -1,12 +1,15 @@
 <script lang="ts">
   import { icons } from "../config/icons";
   import { site } from "../config/site";
+  import { tagRoutePath } from "../utils/search-path";
   import type { PageData } from "./page-data";
 
   let { page }: { page: PageData } = $props();
 
-  // Posts and later list pages belong to Home, so Home stays highlighted there.
-  const sectionPath = $derived(page.kind === "home" || page.isPost ? "/" : page.path);
+  // Posts, tag pages, and later list pages belong to Home.
+  const sectionPath = $derived(
+    page.kind === "home" || page.kind === "tag" || page.isPost ? "/" : page.path,
+  );
   // Reserve the missing rows outside the list frame so pagination stays in place.
   const emptyRowCount = $derived(
     page.kind === "home" && page.pagination
@@ -14,8 +17,6 @@
       : 0,
   );
   const formatDate = (date: string) => date.replaceAll("-", "/");
-  // Tags open the home page's list at "/#タグ名".
-  const tagPath = (tag: string) => "/#" + encodeURIComponent(tag);
   const shareUrl = $derived(
     "https://x.com/intent/post?" +
       new URLSearchParams({ text: page.title, url: site.url + page.path }).toString(),
@@ -93,14 +94,13 @@
     </nav>
 
     <main id="main">
-      {#if page.kind === "home"}
+      {#if page.kind === "home" || page.kind === "tag"}
         <div class="list-area">
           <div class="pane">
-            <table
-              class="file-table"
-              data-tag-posts={page.taggedPosts ? JSON.stringify(page.taggedPosts) : undefined}
-            >
-              <caption class="visually-hidden">記事一覧</caption>
+            <table class="file-table">
+              <caption class="visually-hidden">
+                {page.kind === "tag" ? `タグ「#${page.tag}」の記事` : "記事一覧"}
+              </caption>
               <thead>
                 <tr>
                   <th scope="col">名前</th>
@@ -213,7 +213,7 @@
               {#if page.tags?.length}
                 <ul class="document-tags" aria-label="タグ">
                   {#each page.tags as tag (tag)}
-                    <li><a href={tagPath(tag)}>#{tag}</a></li>
+                    <li><a href={tagRoutePath(tag)}>#{tag}</a></li>
                   {/each}
                 </ul>
               {/if}

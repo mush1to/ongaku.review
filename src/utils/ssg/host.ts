@@ -12,6 +12,7 @@ import {
 } from "@ox-content/vite-plugin-svelte";
 import { site } from "../../config/site";
 import type { AdjacentPost, PageData, Pagination } from "../../pages/page-data";
+import { normalizeTag, tagRoutePath } from "../search-path";
 import { listPosts, loadAboutPage, loadDocs, type DocPage } from "./content";
 import { preserveFullWidthSpaces } from "./whitespace";
 
@@ -40,7 +41,7 @@ const notFoundPage: PageData = {
   breadcrumbs: [{ label: "ページが見つかりません" }],
 };
 
-const listPath = (page: number) => (page === 1 ? "/" : `/page/${page}/`);
+const listPath = (page: number) => (page === 1 ? "/" : `/page/${page}`);
 
 function homePages(posts: readonly DocPage[]): PageData[] {
   const size = site.postsPerPage;
@@ -69,20 +70,30 @@ function homePages(posts: readonly DocPage[]): PageData[] {
       posts: posts
         .slice((number - 1) * size, number * size)
         .map(({ path, title, created, icon }) => ({ path, title, created, icon })),
-      // The tag page lives at "/#タグ名", so only the first page needs every post.
-      taggedPosts:
-        number === 1
-          ? posts.map((post) => ({
-              path: post.path,
-              title: post.title,
-              created: post.created,
-              icon: post.icon,
-              tags: post.tags,
-            }))
-          : undefined,
       pagination,
     };
   });
+}
+
+function tagPages(posts: readonly DocPage[]): PageData[] {
+  const postsByTag = new Map<string, DocPage[]>();
+  for (const post of posts) {
+    for (const tag of post.tags) {
+      const key = normalizeTag(tag);
+      const matches = postsByTag.get(key) ?? [];
+      matches.push(post);
+      postsByTag.set(key, matches);
+    }
+  }
+  return [...postsByTag].map(([tag, matches]) => ({
+    kind: "tag",
+    path: tagRoutePath(tag),
+    title: `#${tag}`,
+    description: site.description,
+    breadcrumbs: [{ label: "タグ" }, { label: `#${tag}` }],
+    tag,
+    posts: matches.map(({ path, title, created, icon }) => ({ path, title, created, icon })),
+  }));
 }
 
 const aboutPage = (doc: DocPage): PageData => ({
@@ -182,7 +193,7 @@ async function renderPage(
   });
   const title =
     page.kind === "404" || page.path !== "/" ? page.title + " | " + site.title : site.title;
-  const canonical = site.url + page.path;
+  const canonical = site.url + (page.path === "/" ? "" : page.path);
   const assets = ctx.assets.document({
     clientEntries: ["src/client.ts"],
     sharedStyles: ctx.mode === "serve" ? ["/src/styles.css"] : [],
@@ -208,7 +219,7 @@ async function renderPage(
             name: page.title,
             url: canonical,
             description: page.description,
-            isPartOf: { "@type": "WebSite", name: site.name, url: site.url + "/" },
+            isPartOf: { "@type": "WebSite", name: site.name, url: site.url },
             inLanguage: "ja",
           };
   const jsonLd = structuredData
@@ -272,14 +283,24 @@ async function renderPage(
     rendered.body +
     "</body></html>";
   if (manifest)
-    html = rewriteCollectionAssetUrls({ html, pagePath: page.path, manifest, document: true }).html;
+    html = rewriteCollectionAssetUrls({
+      html,
+      pagePath: page.path === "/" ? "/" : page.path + "/",
+      manifest,
+      document: true,
+    }).html;
   return {
     html,
     title: page.title,
     description: page.description,
     loc: canonical,
     dependencies: body?.dependencies ?? [],
-    ...(page.kind === "404" ? { outputPath: "404.html", status: 404, unlisted: true } : {}),
+    ...(page.kind === "404"
+      ? { outputPath: "404.html", status: 404, unlisted: true }
+      : {
+          outputPath:
+            page.path === "/" ? "index.html" : decodeURIComponent(page.path.slice(1)) + ".html",
+        }),
   };
 }
 
@@ -294,6 +315,13 @@ const host: OxContentCustomHostModule = {
       description: page.description,
       render: (context) => renderPage(context, page),
     }));
+    for (const page of tagPages(posts))
+      routes.push({
+        path: page.path,
+        title: page.title,
+        description: page.description,
+        render: (context) => renderPage(context, page),
+      });
     posts.forEach((doc, index) =>
       routes.push({
         path: doc.path,

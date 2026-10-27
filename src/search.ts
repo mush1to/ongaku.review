@@ -77,10 +77,17 @@ export function initSearch(form: HTMLFormElement) {
     }
     const tag = /^[#＃]/.test(keyword) ? keyword.replace(/^[#＃]+/, "").trim() : undefined;
     try {
-      pages ??= fetch("/search-pages.json").then((response) => {
-        if (!response.ok) throw new Error(`search-pages.json: ${response.status}`);
-        return response.json() as Promise<Record<string, unknown>>;
-      });
+      if (!pages) {
+        const pending = fetch("/search-pages.json").then((response) => {
+          if (!response.ok) throw new Error(`search-pages.json: ${response.status}`);
+          return response.json() as Promise<Record<string, unknown>>;
+        });
+        const retryable = pending.catch((error: unknown) => {
+          if (pages === retryable) pages = undefined;
+          throw error;
+        });
+        pages = retryable;
+      }
       if (tag) {
         const results = tagResults(tag, await pages);
         if (request !== latest) return;
