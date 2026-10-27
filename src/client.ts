@@ -14,7 +14,6 @@ if (searchWindow && searchForm && searchInput) {
     "検索を読み込めませんでした。もう一度開いてください。改善しない場合はページを再読み込みしてください。";
   let searchModule: Promise<void> | undefined;
   let searchInitialized = false;
-  let queuedSubmit = false;
   let composing = false;
   let compositionEndTimer: ReturnType<typeof setTimeout> | undefined;
   let backdropPointer: { id: number; outside: boolean } | undefined;
@@ -44,26 +43,19 @@ if (searchWindow && searchForm && searchInput) {
   searchForm.addEventListener("submit", (event) => {
     if (searchInitialized) return;
     event.preventDefault();
-    queuedSubmit = true;
-    void loadSearch()
-      .then(() => {
-        if (queuedSubmit) searchForm.requestSubmit();
-        queuedSubmit = false;
-      })
-      .catch(() => {
-        queuedSubmit = false;
-      });
+    void loadSearch().catch(() => {});
   });
   for (const opener of document.querySelectorAll<HTMLElement>("[data-search-open]"))
     opener.addEventListener("click", () => {
       const query = opener.dataset.searchQuery;
+      const initialized = searchInitialized;
       searchWindow.showModal();
       if (query) searchInput.value = query;
       searchInput.focus();
       searchInput.select();
       void loadSearch()
         .then(() => {
-          if (query) searchForm.requestSubmit();
+          if (initialized && query) searchForm.requestSubmit();
         })
         .catch(() => {});
     });
