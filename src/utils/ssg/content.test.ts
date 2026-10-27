@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, realpath, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -182,6 +182,43 @@ describe("thumbnail", () => {
     await expect(loadDocs(root)).rejects.toThrow(
       "src/content/posts/first.md: thumbnail には src/content 内の画像を指定してください",
     );
+  });
+
+  it.each(["file", "directory"])("src/content外への%s symlinkを拒否する", async (kind) => {
+    const reference = kind === "file" ? "./linked.png" : "./linked/cover.png";
+    const root = await createRoot({ "first.md": post(`thumbnail: ${reference}`) });
+    const outside = path.join(root, "outside");
+    await mkdir(outside);
+    await writeFile(path.join(outside, "cover.png"), "");
+    await symlink(
+      kind === "file" ? path.join(outside, "cover.png") : outside,
+      path.join(root, "src/content/posts", kind === "file" ? "linked.png" : "linked"),
+      kind === "file" ? "file" : "dir",
+    );
+
+    await expect(loadDocs(root)).rejects.toThrow(
+      "src/content/posts/first.md: thumbnail には src/content 内の画像を指定してください",
+    );
+  });
+
+  it("src/content内へのsymlinkは実パスと元の公開URLで登録する", async () => {
+    const root = await createRootWithImage("thumbnail: ./linked.png");
+    const target = path.join(root, "src/content/posts/images/cover.png");
+    await symlink(target, path.join(root, "src/content/posts/linked.png"));
+    const [doc] = await loadDocs(root);
+    const thumbnail = doc!.thumbnail!;
+    expect(thumbnail.sourcePath).toBe(await realpath(target));
+    expect(thumbnail.publicPath).toBe("/posts/first/linked.png");
+    const planned = await planCollectionAssetsFromDocuments({
+      root,
+      contentRoot: "src/content",
+      documents: [{ documentPath: doc!.documentPath, pagePath: doc!.path, source: doc!.source }],
+      extraAssets: [{ sourcePath: thumbnail.sourcePath, publicPath: thumbnail.publicPath }],
+    });
+    expect(
+      planned.manifest.assets.find((asset) => asset.sourcePath === thumbnail.sourcePath)
+        ?.publicPaths,
+    ).toContain(thumbnail.publicPath);
   });
 });
 

@@ -289,6 +289,7 @@ test.describe("タグページ", () => {
 
     await expect.poll(() => currentPath(page)).toBe("/tags/ロック");
     await expect(page).toHaveTitle("#ロック | ongaku.review");
+    await expect(page.getByRole("main").getByRole("heading", { level: 1 })).toHaveText("#ロック");
     await expect(mainNavigation(page).getByRole("link", { name: "Home" })).toHaveAttribute(
       "aria-current",
       "true",
@@ -317,6 +318,9 @@ test.describe("タグページ", () => {
     });
     const staticPage = await context.newPage();
     await staticPage.goto("/tags/ジャズ");
+    await expect(staticPage.getByRole("main").getByRole("heading", { level: 1 })).toHaveText(
+      "#ジャズ",
+    );
     await expect(
       staticPage.getByRole("table", { name: "タグ「#ジャズ」の記事" }).locator(".file-link"),
     ).toHaveText(["「Kind of Blue」の余白"]);
@@ -627,6 +631,37 @@ test.describe("検索ウィンドウ", () => {
       .dispatchEvent("keydown", { key: "Escape", isComposing: true });
     await expect(searchWindow).toBeVisible();
     await page.mouse.click(10, 10);
+    await expect(searchWindow).toBeHidden();
+  });
+
+  test("変換中の標準Escとcancelを抑止し、変換終了後のEscで閉じる", async ({ page }) => {
+    await page.goto("/");
+    const searchWindow = await openSearchWindow(page);
+    const input = searchWindow.getByRole("searchbox", { name: "キーワード" });
+    await input.dispatchEvent("compositionstart");
+    await page.keyboard.press("Escape");
+    await expect(searchWindow).toBeVisible();
+    await searchWindow.evaluate((element: HTMLDialogElement) => element.requestClose());
+    await expect(searchWindow).toBeVisible();
+    await input.evaluate((element) => {
+      element.dispatchEvent(new CompositionEvent("compositionend", { bubbles: true }));
+      element.closest("dialog")!.requestClose();
+    });
+    await expect(searchWindow).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(searchWindow).toBeHidden();
+  });
+
+  test("変換中でも閉じるボタンは使え、再度開いた後のEscを妨げない", async ({ page }) => {
+    await page.goto("/");
+    const searchWindow = await openSearchWindow(page);
+    await searchWindow
+      .getByRole("searchbox", { name: "キーワード" })
+      .dispatchEvent("compositionstart");
+    await searchWindow.getByRole("button", { name: "閉じる" }).click();
+    await expect(searchWindow).toBeHidden();
+    await openSearchWindow(page);
+    await page.keyboard.press("Escape");
     await expect(searchWindow).toBeHidden();
   });
 

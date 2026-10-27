@@ -1,4 +1,4 @@
-import { readFile, readdir, stat } from "node:fs/promises";
+import { readFile, readdir, realpath, stat } from "node:fs/promises";
 import path from "node:path";
 import { parse } from "yaml";
 import { buildSearchIndex } from "@ox-content/vite-plugin";
@@ -121,9 +121,14 @@ async function readThumbnail(
     throw new Error(
       `${file}: thumbnail には ${thumbnailExtensions.join("・")} のいずれかの画像を指定してください`,
     );
-  const sourcePath = path.resolve(path.dirname(documentPath), reference);
-  const fromAssetRoot = path.relative(path.join(root, assetRoot), sourcePath);
+  const candidate = path.resolve(path.dirname(documentPath), reference);
+  const fromAssetRoot = path.relative(path.join(root, assetRoot), candidate);
   if (fromAssetRoot.startsWith("..") || path.isAbsolute(fromAssetRoot))
+    throw new Error(`${file}: thumbnail には ${assetRoot} 内の画像を指定してください`);
+  const sourcePath = await realpath(candidate).catch(() => null);
+  if (!sourcePath) throw new Error(`${file}: thumbnail の画像 ${reference} が見つかりません`);
+  const fromRealAssetRoot = path.relative(await realpath(path.join(root, assetRoot)), sourcePath);
+  if (fromRealAssetRoot.startsWith("..") || path.isAbsolute(fromRealAssetRoot))
     throw new Error(`${file}: thumbnail には ${assetRoot} 内の画像を指定してください`);
   if (!(await stat(sourcePath).catch(() => null))?.isFile())
     throw new Error(`${file}: thumbnail の画像 ${reference} が見つかりません`);

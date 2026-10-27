@@ -94,6 +94,9 @@
     </nav>
 
     <main id="main">
+      {#if page.kind === "tag"}
+        <h1 class="visually-hidden">{page.title}</h1>
+      {/if}
       {#if page.kind === "home" || page.kind === "tag"}
         <div class="list-area">
           <div class="pane">

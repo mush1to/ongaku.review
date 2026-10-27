@@ -15,6 +15,8 @@ if (searchWindow && searchForm && searchInput) {
   let searchModule: Promise<void> | undefined;
   let searchInitialized = false;
   let queuedSubmit = false;
+  let composing = false;
+  let compositionEndTimer: ReturnType<typeof setTimeout> | undefined;
   let backdropPointer: { id: number; outside: boolean } | undefined;
   let closeOnBackdropClick = false;
   const isOutsideFrame = (x: number, y: number) => {
@@ -66,8 +68,22 @@ if (searchWindow && searchForm && searchInput) {
         .catch(() => {});
     });
   searchForm.addEventListener("submit", (event) => event.preventDefault());
+  searchInput.addEventListener("compositionstart", () => {
+    clearTimeout(compositionEndTimer);
+    composing = true;
+  });
+  searchInput.addEventListener("compositionend", () => {
+    // Keep the guard through an Escape/cancel delivered in the same event turn.
+    clearTimeout(compositionEndTimer);
+    compositionEndTimer = setTimeout(() => {
+      composing = false;
+    }, 0);
+  });
+  searchWindow.addEventListener("cancel", (event) => {
+    if (composing) event.preventDefault();
+  });
   searchInput.addEventListener("keydown", (event) => {
-    if (event.key !== "Escape" || event.isComposing) return;
+    if (event.key !== "Escape" || event.isComposing || composing) return;
     event.preventDefault();
     searchWindow.close();
   });
@@ -102,6 +118,8 @@ if (searchWindow && searchForm && searchInput) {
     closeOnBackdropClick = false;
   });
   searchWindow.addEventListener("close", () => {
+    clearTimeout(compositionEndTimer);
+    composing = false;
     backdropPointer = undefined;
     closeOnBackdropClick = false;
   });
