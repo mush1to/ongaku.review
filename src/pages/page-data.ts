@@ -12,13 +12,6 @@ export interface PostSummary {
   icon: PostIcon;
 }
 
-export interface SearchPage {
-  path: string;
-  title: string;
-  icon: PostIcon;
-  tags: string[];
-}
-
 export interface Thumbnail {
   src: string;
   alt: string;
@@ -38,7 +31,7 @@ export interface Pagination {
 }
 
 export interface PageData {
-  kind: "home" | "page" | "search" | "404";
+  kind: "home" | "page" | "404";
   path: string;
   title: string;
   description: string;
@@ -55,5 +48,4 @@ export interface PageData {
   adjacent?: { previous?: AdjacentPost; next?: AdjacentPost };
   posts?: PostSummary[];
   pagination?: Pagination;
-  searchPages?: Record<string, SearchPage>;
 }

@@ -63,33 +63,34 @@ export function initSearch(form: HTMLFormElement) {
   const status = document.querySelector<HTMLElement>("[data-search-status]");
   const list = document.querySelector<HTMLElement>("[data-search-results]");
   if (!(input instanceof HTMLInputElement) || !status || !list) return;
-  const pagesByIndexPath = JSON.parse(list.dataset.searchPages ?? "{}") as Record<string, unknown>;
+  let pages: Promise<Record<string, unknown>> | undefined;
   let latest = 0;
   let timer: ReturnType<typeof setTimeout> | undefined;
 
   const run = async (query: string) => {
     const request = ++latest;
     const keyword = query.trim();
-    const url = new URL(location.href);
-    if (keyword) url.searchParams.set("q", keyword);
-    else url.searchParams.delete("q");
-    history.replaceState(history.state, "", url);
     if (!keyword) {
       list.replaceChildren();
       status.textContent = "";
       return;
     }
     const tag = /^[#＃]/.test(keyword) ? keyword.replace(/^[#＃]+/, "").trim() : undefined;
-    if (tag) {
-      const results = tagResults(tag, pagesByIndexPath);
-      list.replaceChildren(...results.map(resultItem));
-      status.textContent = results.length
-        ? `タグ「#${tag}」の記事：${results.length}件`
-        : `タグ「#${tag}」の記事は見つかりませんでした。`;
-      return;
-    }
     try {
-      const results = await search(keyword);
+      pages ??= fetch("/search-pages.json").then((response) => {
+        if (!response.ok) throw new Error(`search-pages.json: ${response.status}`);
+        return response.json() as Promise<Record<string, unknown>>;
+      });
+      if (tag) {
+        const results = tagResults(tag, await pages);
+        if (request !== latest) return;
+        list.replaceChildren(...results.map(resultItem));
+        status.textContent = results.length
+          ? `タグ「#${tag}」の記事：${results.length}件`
+          : `タグ「#${tag}」の記事は見つかりませんでした。`;
+        return;
+      }
+      const [results, pagesByIndexPath] = await Promise.all([search(keyword), pages]);
       if (request !== latest) return;
       list.replaceChildren(
         ...results.map((result) => {
@@ -123,9 +124,5 @@ export function initSearch(form: HTMLFormElement) {
     timer = setTimeout(() => void run(input.value), 200);
   });
 
-  const initial = new URLSearchParams(location.search).get("q");
-  if (initial) {
-    input.value = initial;
-    void run(initial);
-  }
+  if (input.value.trim()) void run(input.value);
 }

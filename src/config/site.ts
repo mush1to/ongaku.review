@@ -6,12 +6,9 @@ export interface NavigationLink {
   icon: IconName;
 }
 
-export const searchPath = "/search/";
-
 const navigation: readonly NavigationLink[] = [
   { path: "/", label: "Home", icon: "house" },
   { path: "/about/", label: "About", icon: "information" },
-  { path: searchPath, label: "Search", icon: "magnifier" },
 ];
 
 export const site = {

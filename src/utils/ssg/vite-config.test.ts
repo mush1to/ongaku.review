@@ -88,9 +88,10 @@ describe("Vite search writer lifecycle", () => {
         const absentOutput = path.join(outputRoot, "absent");
         await invokeConfigResolved(customSearch, "serve", absentOutput);
         await invokeCloseBundle(customSearch);
-        await expect(
-          readFile(path.join(absentOutput, "search-index.json"), "utf8"),
-        ).rejects.toMatchObject({ code: "ENOENT" });
+        for (const file of ["search-index.json", "search-pages.json"])
+          await expect(readFile(path.join(absentOutput, file), "utf8")).rejects.toMatchObject({
+            code: "ENOENT",
+          });
       } finally {
         await rm(outputRoot, { recursive: true, force: true });
       }
@@ -112,6 +113,12 @@ describe("Vite search writer lifecycle", () => {
       const searchIndex = await readFile(path.join(outputRoot, "search-index.json"), "utf8");
       expect(searchIndex).toContain("abbey-road");
       expect(searchIndex.toLowerCase()).not.toContain("unpublished-test");
+      const searchPages = await readFile(path.join(outputRoot, "search-pages.json"), "utf8");
+      expect(JSON.parse(searchPages)["/abbey-road/"]).toMatchObject({
+        path: "/posts/abbey-road/",
+        icon: "cd",
+      });
+      expect(searchPages.toLowerCase()).not.toContain("unpublished-test");
     } finally {
       await rm(outputRoot, { recursive: true, force: true });
     }

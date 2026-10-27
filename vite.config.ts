@@ -11,12 +11,17 @@ import {
   loadAboutPage,
   loadDocs,
   loadSearchIndex,
+  loadSearchPages,
 } from "./src/utils/ssg/content";
 import { site } from "./src/config/site";
 
 export default defineConfig(async ({ command, mode }) => {
   const root = import.meta.dirname;
   let searchOutputDirectory: string | undefined;
+  const searchOutputs = new Map([
+    ["/search-index.json", loadSearchIndex],
+    ["/search-pages.json", loadSearchPages],
+  ]);
   const registry = createSvelteHtmlHostIslandRegistry({
     documents: async () =>
       [...(await loadDocs(root)), await loadAboutPage(root)].map(({ documentPath, source }) => ({
@@ -107,11 +112,12 @@ export default defineConfig(async ({ command, mode }) => {
           async handler() {
             if (!searchOutputDirectory) return;
             await mkdir(searchOutputDirectory, { recursive: true });
-            await writeFile(
-              path.join(searchOutputDirectory, "search-index.json"),
-              await loadSearchIndex(root),
-              "utf8",
-            );
+            for (const [url, load] of searchOutputs)
+              await writeFile(
+                path.join(searchOutputDirectory, url.slice(1)),
+                await load(root),
+                "utf8",
+              );
           },
         },
         configurePreviewServer(server: PreviewServer) {
@@ -139,11 +145,12 @@ export default defineConfig(async ({ command, mode }) => {
         },
         configureServer(server: ViteDevServer) {
           server.middlewares.use(async (request, response, next) => {
-            if (request.url?.split("?")[0] !== "/search-index.json") return next();
+            const load = searchOutputs.get(request.url?.split("?")[0] ?? "");
+            if (!load) return next();
             try {
-              const index = await loadSearchIndex(root);
+              const output = await load(root);
               response.setHeader("Content-Type", "application/json; charset=utf-8");
-              response.end(index);
+              response.end(output);
             } catch (error) {
               next(error);
             }

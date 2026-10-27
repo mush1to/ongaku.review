@@ -2,7 +2,7 @@ import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { listPosts, loadAboutPage, loadDocs, loadSearchIndex } from "./content";
+import { listPosts, loadAboutPage, loadDocs, loadSearchIndex, loadSearchPages } from "./content";
 
 const roots: string[] = [];
 
@@ -211,6 +211,23 @@ describe("loadSearchIndex", () => {
     expect(JSON.parse(index).documents.map((doc: { id: string }) => doc.id)).toEqual(["published"]);
     expect(index).toContain("PublicFixture");
     expect(index.toLowerCase()).not.toMatch(/secret|partial|aboutfixture/);
+  });
+});
+
+describe("loadSearchPages", () => {
+  it("公開記事を新しい順に並べ、検索URLから記事URL・タイトル・アイコン・タグを引けるようにする", async () => {
+    const root = await createRoot({
+      "old.md": post("title: 古い記事\ncreated: 2026-10-01\ntags:\n  - ロック"),
+      "new.md": post("title: 新しい記事\ncreated: 2026-10-20\nicon: cd"),
+      "hidden.md": post("title: 非公開\nisPublished: false"),
+    });
+
+    const pages = JSON.parse(await loadSearchPages(root));
+    expect(Object.keys(pages)).toEqual(["/new/", "/old/"]);
+    expect(pages).toEqual({
+      "/new/": { path: "/posts/new/", title: "新しい記事", icon: "cd", tags: [] },
+      "/old/": { path: "/posts/old/", title: "古い記事", icon: "document", tags: ["ロック"] },
+    });
   });
 });
 

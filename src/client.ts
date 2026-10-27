@@ -5,8 +5,38 @@ import modules from "virtual:ox-content-svelte/html-host/modules";
 
 initSvelteHtmlHost({ modules, initIslands, mount: { mode: "hydrate" } });
 
-const searchForm = document.querySelector<HTMLFormElement>("form[data-search-form]");
-if (searchForm) void import("./search").then(({ initSearch }) => initSearch(searchForm));
+const searchWindow = document.querySelector<HTMLDialogElement>("dialog[data-search-window]");
+const searchForm = searchWindow?.querySelector<HTMLFormElement>("form[data-search-form]");
+const searchInput = searchForm?.querySelector<HTMLInputElement>("input[name='q']");
+if (searchWindow && searchForm && searchInput) {
+  let searchModule: Promise<void> | undefined;
+  let backdropPressed = false;
+  for (const opener of document.querySelectorAll<HTMLElement>("[data-search-open]"))
+    opener.addEventListener("click", () => {
+      const query = opener.dataset.searchQuery;
+      searchWindow.showModal();
+      if (query) searchInput.value = query;
+      searchInput.focus();
+      searchInput.select();
+      if (query && searchModule) searchForm.requestSubmit();
+      searchModule ??= import("./search").then(({ initSearch }) => initSearch(searchForm));
+    });
+  searchForm.addEventListener("submit", (event) => event.preventDefault());
+  searchInput.addEventListener("keydown", (event) => {
+    if (event.key !== "Escape" || event.isComposing) return;
+    event.preventDefault();
+    searchWindow.close();
+  });
+  searchWindow
+    .querySelector("[data-search-close]")
+    ?.addEventListener("click", () => searchWindow.close());
+  searchWindow.addEventListener("pointerdown", (event) => {
+    backdropPressed = event.target === searchWindow;
+  });
+  searchWindow.addEventListener("click", (event) => {
+    if (backdropPressed && event.target === searchWindow) searchWindow.close();
+  });
+}
 
 const copyIcons = {
   idle: '<rect x="9" y="9" width="11" height="11" rx="2"/><path d="M15 9V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h4"/>',

@@ -3,6 +3,13 @@ import { expect, test, type Page } from "@playwright/test";
 const mainNavigation = (page: Page) =>
   page.getByRole("navigation", { name: "メインナビゲーション" });
 
+const openSearchWindow = async (page: Page) => {
+  await mainNavigation(page).getByRole("button", { name: "Search" }).click();
+  const searchWindow = page.getByRole("dialog", { name: "検索" });
+  await expect(searchWindow).toBeVisible();
+  return searchWindow;
+};
+
 test.describe("トップページ", () => {
   test.beforeEach(async ({ page }) => {
     await page.goto("/");
@@ -18,7 +25,9 @@ test.describe("トップページ", () => {
 
   test("ナビゲーションをHome・About・Searchの順に並べ、現在のページを示す", async ({ page }) => {
     const navigation = mainNavigation(page);
-    await expect(navigation.getByRole("link")).toHaveText(["Home", "About", "Search"]);
+    await expect(navigation.getByRole("listitem")).toHaveText(["Home", "About", "Search"]);
+    await expect(navigation.getByRole("link")).toHaveText(["Home", "About"]);
+    await expect(navigation.getByRole("button", { name: "Search" })).toBeVisible();
     await expect(navigation.getByRole("link", { name: "Home" })).toHaveAttribute(
       "aria-current",
       "page",
@@ -84,14 +93,13 @@ test.describe("タイトルバー", () => {
     { name: "2ページ目", path: "/page/2/" },
     { name: "記事ページ", path: "/posts/abbey-road/" },
     { name: "Aboutページ", path: "/about/" },
-    { name: "検索ページ", path: "/search/" },
     { name: "404ページ", path: "/does-not-exist/" },
   ];
 
   for (const { name, path } of pages)
     test(`${name}に操作できない飾りのタイトルバーを表示する`, async ({ page }) => {
       await page.goto(path);
-      const titleBar = page.locator(".title-bar");
+      const titleBar = page.locator(".window > .title-bar");
       await expect(titleBar).toBeVisible();
       await expect(titleBar.locator(".title-bar-text")).toHaveText("Internet");
 
@@ -161,10 +169,23 @@ test.describe("スマートフォン表示", () => {
       () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
     );
     expect(overflow).toBe(0);
-    await expect(mainNavigation(page).getByRole("link", { name: "Search" })).toBeInViewport();
+    await expect(mainNavigation(page).getByRole("button", { name: "Search" })).toBeInViewport();
     await expect(
       page.getByRole("link", { name: "「アビイ・ロード」を2026年に聴く" }),
     ).toBeInViewport();
+  });
+
+  test("検索ウィンドウを画面幅に収め、閉じるボタンのタップ範囲を44px以上にする", async ({
+    page,
+  }) => {
+    await page.goto("/");
+    const searchWindow = await openSearchWindow(page);
+    const windowBox = await searchWindow.boundingBox();
+    expect(windowBox?.x).toBeGreaterThanOrEqual(0);
+    expect((windowBox?.x ?? 0) + (windowBox?.width ?? Infinity)).toBeLessThanOrEqual(375);
+    const closeBox = await searchWindow.getByRole("button", { name: "閉じる" }).boundingBox();
+    expect(closeBox?.width).toBeGreaterThanOrEqual(44);
+    expect(closeBox?.height).toBeGreaterThanOrEqual(44);
   });
 
   test("2ページ目も一覧の直後にページ送りを表示する", async ({ page }) => {
@@ -312,27 +333,39 @@ test.describe("記事ページの構成", () => {
     );
   });
 
-  test("タグのリンクからそのタグの記事を検索する", async ({ page }) => {
+  test("タグを押すと、ページを移動せずに検索ウィンドウでそのタグの記事を検索する", async ({
+    page,
+  }) => {
     await page.goto("/posts/abbey-road/");
     const tags = page.getByRole("list", { name: "タグ" });
-    await expect(tags.getByRole("link")).toHaveText(["#ロック", "#The Beatles", "#1960年代"]);
-    await tags.getByRole("link", { name: "#ロック" }).click();
-    await expect(page).toHaveURL(/\/search\/\?q=%23/);
-    await expect(page.getByRole("searchbox", { name: "キーワード" })).toHaveValue("#ロック");
-    await expect(page.getByRole("status")).toHaveText("タグ「#ロック」の記事：3件");
-    await expect(page.locator("[data-search-results] a")).toHaveText([
+    await expect(tags.getByRole("button")).toHaveText(["#ロック", "#The Beatles", "#1960年代"]);
+    await tags.getByRole("button", { name: "#ロック" }).click();
+    const searchWindow = page.getByRole("dialog", { name: "検索" });
+    const searchbox = searchWindow.getByRole("searchbox", { name: "キーワード" });
+    await expect(searchbox).toHaveValue("#ロック");
+    await expect(searchWindow.getByRole("status")).toHaveText("タグ「#ロック」の記事：3件");
+    await expect(searchWindow.locator("[data-search-results] a")).toHaveText([
       "「アビイ・ロード」を2026年に聴く",
       "「OK Computer」の静かな怒り",
       "「In Rainbows」の温度",
     ]);
+    await expect(page).toHaveURL(/\/posts\/abbey-road\/$/);
+
+    await searchWindow.getByRole("button", { name: "閉じる" }).click();
+    await tags.getByRole("button", { name: "#The Beatles" }).click();
+    await expect(searchbox).toHaveValue("#The Beatles");
+    await expect(searchWindow.getByRole("status")).toHaveText("タグ「#The Beatles」の記事：1件");
   });
 
   test("タグ検索は全角の#と表記ゆれを同じタグとして扱う", async ({ page }) => {
-    await page.goto("/search/?q=" + encodeURIComponent("＃ｼﾞｬｽﾞ"));
-    await expect(page.getByRole("status")).toHaveText("タグ「#ｼﾞｬｽﾞ」の記事：1件");
-    await expect(page.getByRole("link", { name: "「Kind of Blue」の余白" })).toBeVisible();
-    await page.goto("/search/?q=" + encodeURIComponent("#存在しないタグ"));
-    await expect(page.getByRole("status")).toHaveText(
+    await page.goto("/");
+    const searchWindow = await openSearchWindow(page);
+    const searchbox = searchWindow.getByRole("searchbox", { name: "キーワード" });
+    await searchbox.fill("＃ｼﾞｬｽﾞ");
+    await expect(searchWindow.getByRole("status")).toHaveText("タグ「#ｼﾞｬｽﾞ」の記事：1件");
+    await expect(searchWindow.getByRole("link", { name: "「Kind of Blue」の余白" })).toBeVisible();
+    await searchbox.fill("#存在しないタグ");
+    await expect(searchWindow.getByRole("status")).toHaveText(
       "タグ「#存在しないタグ」の記事は見つかりませんでした。",
     );
   });
@@ -473,35 +506,90 @@ test.describe("非公開記事", () => {
   });
 
   test("非公開本文の検索では結果が出ない", async ({ page }) => {
-    await page.goto("/search/?q=UnpublishedFixtureBody");
-    await expect(page.getByRole("status")).toContainText("一致するページは見つかりませんでした。");
-    await expect(page.locator("[data-search-results] li")).toHaveCount(0);
+    await page.goto("/");
+    const searchWindow = await openSearchWindow(page);
+    await searchWindow
+      .getByRole("searchbox", { name: "キーワード" })
+      .fill("UnpublishedFixtureBody");
+    await expect(searchWindow.getByRole("status")).toContainText(
+      "一致するページは見つかりませんでした。",
+    );
+    await expect(searchWindow.locator("[data-search-results] li")).toHaveCount(0);
   });
 });
 
-test.describe("検索ページ", () => {
-  test("入力したキーワードに一致する記事を表示する", async ({ page }) => {
-    await page.goto("/search/");
-    await expect(mainNavigation(page).getByRole("link", { name: "Search" })).toHaveAttribute(
-      "aria-current",
-      "page",
-    );
-    await page.getByRole("searchbox", { name: "キーワード" }).fill("アビイ");
-    await page.getByRole("button", { name: "検索" }).click();
+test.describe("検索ウィンドウ", () => {
+  test("ページを移動せずに開き、入力したキーワードに一致する記事を表示する", async ({ page }) => {
+    await page.goto("/posts/kind-of-blue/");
+    const searchWindow = await openSearchWindow(page);
+    const searchbox = searchWindow.getByRole("searchbox", { name: "キーワード" });
+    await expect(searchbox).toBeFocused();
+    await searchbox.fill("アビイ");
+    await searchWindow.getByRole("button", { name: "検索" }).click();
 
-    await expect(page.getByRole("status")).toContainText("「アビイ」の検索結果");
-    await expect(
-      page.getByRole("link", { name: "「アビイ・ロード」を2026年に聴く" }),
-    ).toHaveAttribute("href", "/posts/abbey-road/");
-    await expect(page).toHaveURL(/\/search\/\?q=%E3%82%A2%E3%83%93%E3%82%A4$/);
+    await expect(searchWindow.getByRole("status")).toContainText("「アビイ」の検索結果");
+    const result = searchWindow.getByRole("link", { name: "「アビイ・ロード」を2026年に聴く" });
+    await expect(result).toHaveAttribute("href", "/posts/abbey-road/");
+    await expect(result.locator("img")).toHaveAttribute("src", "/icons/silk/cd.svg");
+    await expect(page).toHaveURL(/\/posts\/kind-of-blue\/$/);
+
+    await result.click();
+    await expect(page).toHaveURL(/\/posts\/abbey-road\/$/);
   });
 
-  test("URLのキーワードで検索する", async ({ page }) => {
-    await page.goto("/search/?q=" + encodeURIComponent("アビイ"));
-    await expect(page.getByRole("searchbox", { name: "キーワード" })).toHaveValue("アビイ");
-    await expect(
-      page.getByRole("link", { name: "「アビイ・ロード」を2026年に聴く" }),
-    ).toBeVisible();
+  test("閉じるボタン・Esc・ウィンドウの外のクリックで閉じ、Searchボタンにフォーカスを戻す", async ({
+    page,
+  }) => {
+    await page.goto("/");
+    const searchButton = mainNavigation(page).getByRole("button", { name: "Search" });
+
+    const searchWindow = await openSearchWindow(page);
+    await searchWindow.getByRole("button", { name: "閉じる" }).click();
+    await expect(searchWindow).toBeHidden();
+    await expect(searchButton).toBeFocused();
+
+    await openSearchWindow(page);
+    await page.keyboard.press("Escape");
+    await expect(searchWindow).toBeHidden();
+    await expect(searchButton).toBeFocused();
+
+    await openSearchWindow(page);
+    await searchWindow.getByRole("heading", { name: "検索" }).click();
+    await expect(searchWindow).toBeVisible();
+    await searchWindow
+      .getByRole("searchbox", { name: "キーワード" })
+      .dispatchEvent("keydown", { key: "Escape", isComposing: true });
+    await expect(searchWindow).toBeVisible();
+    await page.mouse.click(10, 10);
+    await expect(searchWindow).toBeHidden();
+  });
+
+  test("入力中にEscで閉じても、開き直すと前回のキーワードと結果を残して選択した状態にする", async ({
+    page,
+  }) => {
+    await page.goto("/");
+    const searchWindow = await openSearchWindow(page);
+    const searchbox = searchWindow.getByRole("searchbox", { name: "キーワード" });
+    const result = searchWindow.getByRole("link", { name: "「アビイ・ロード」を2026年に聴く" });
+    await searchbox.fill("アビイ");
+    await expect(result).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(searchWindow).toBeHidden();
+
+    await openSearchWindow(page);
+    await expect(searchbox).toHaveValue("アビイ");
+    await expect(searchbox).toBeFocused();
+    expect(
+      await searchbox.evaluate((input: HTMLInputElement) => [
+        input.selectionStart,
+        input.selectionEnd,
+      ]),
+    ).toEqual([0, 3]);
+    await expect(result).toBeVisible();
+  });
+
+  test("検索ページは公開しない", async ({ request }) => {
+    expect((await request.get("/search/")).status()).toBe(404);
   });
 });
 

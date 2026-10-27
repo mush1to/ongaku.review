@@ -4,7 +4,7 @@ import { parse } from "yaml";
 import { buildSearchIndex } from "@ox-content/vite-plugin";
 import { defaultPostIcon, isPostIcon, postIcons, type PostIcon } from "../../config/icons";
 import { site } from "../../config/site";
-import { normalizeTag } from "../search-path";
+import { normalizeSearchPath, normalizeTag } from "../search-path";
 
 export const contentDirectory = "src/content/posts";
 export const aboutDocument = "src/content/about.mdx";
@@ -239,6 +239,19 @@ export async function loadSearchIndex(root: string): Promise<string> {
     )
     .filter((id) => !published.has(id));
   return buildSearchIndex(contentRoot, "/", [".mdx", ".md"], undefined, excluded, true);
+}
+
+/** Each post's search metadata in `listPosts` order, keyed by its normalized index URL. */
+export async function loadSearchPages(root: string): Promise<string> {
+  const posts = listPosts(await loadDocs(root));
+  return JSON.stringify(
+    Object.fromEntries(
+      posts.map((doc) => [
+        normalizeSearchPath(doc.indexPath),
+        { path: doc.path, title: doc.title, icon: doc.icon, tags: doc.tags },
+      ]),
+    ),
+  );
 }
 
 /** Published posts, newest creation date first. Undated posts come last. */

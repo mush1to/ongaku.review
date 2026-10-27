@@ -10,9 +10,8 @@ import {
   createSvelteHtmlHostRenderer,
   type RenderSvelteHtmlHostResult,
 } from "@ox-content/vite-plugin-svelte";
-import { searchPath, site } from "../../config/site";
+import { site } from "../../config/site";
 import type { AdjacentPost, PageData, Pagination } from "../../pages/page-data";
-import { normalizeSearchPath } from "../search-path";
 import { listPosts, loadAboutPage, loadDocs, type DocPage } from "./content";
 import { preserveFullWidthSpaces } from "./whitespace";
 
@@ -105,24 +104,10 @@ const postPage = (posts: readonly DocPage[], index: number): PageData => {
   };
 };
 
-const searchPage = (posts: readonly DocPage[]): PageData => ({
-  kind: "search",
-  path: searchPath,
-  title: "検索",
-  description: site.title + " の記事を検索します。",
-  breadcrumbs: [{ label: "検索" }],
-  searchPages: Object.fromEntries(
-    posts.map((doc) => [
-      normalizeSearchPath(doc.indexPath),
-      { path: doc.path, title: doc.title, icon: doc.icon, tags: doc.tags },
-    ]),
-  ),
-});
-
 function assertRoutable(doc: DocPage) {
-  if (doc.path === "/" || doc.path === searchPath || doc.path.startsWith("/page/"))
+  if (doc.path === "/" || doc.path.startsWith("/page/"))
     throw new Error(
-      `${doc.documentPath}: ${doc.path} は記事一覧・検索ページと重なるため、ファイル名を変更してください`,
+      `${doc.documentPath}: ${doc.path} は記事一覧と重なるため、ファイル名を変更してください`,
     );
 }
 
@@ -309,7 +294,6 @@ const host: OxContentCustomHostModule = {
       }),
     );
     const about = await ctx.memo("about", () => loadAboutPage(ctx.root));
-    const search = searchPage(posts);
     routes.push(
       {
         path: about.path,
@@ -318,12 +302,6 @@ const host: OxContentCustomHostModule = {
         inputPath: about.documentPath,
         source: about.source,
         render: (context) => renderPage(context, aboutPage(about), about),
-      },
-      {
-        path: search.path,
-        title: search.title,
-        description: search.description,
-        render: (context) => renderPage(context, search),
       },
       {
         path: notFoundPage.path,

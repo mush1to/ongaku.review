@@ -1,6 +1,6 @@
 <script lang="ts">
   import { icons } from "../config/icons";
-  import { searchPath, site } from "../config/site";
+  import { site } from "../config/site";
   import type { PageData } from "./page-data";
 
   let { page }: { page: PageData } = $props();
@@ -14,7 +14,6 @@
       : 0,
   );
   const formatDate = (date: string) => date.replaceAll("-", "/");
-  const tagSearchPath = (tag: string) => searchPath + "?q=" + encodeURIComponent("#" + tag);
   const shareUrl = $derived(
     "https://x.com/intent/post?" +
       new URLSearchParams({ text: page.title, url: site.url + page.path }).toString(),
@@ -58,6 +57,12 @@
             </a>
           </li>
         {/each}
+        <li>
+          <button type="button" aria-haspopup="dialog" aria-controls="search-window" data-search-open>
+            <img src={icons.magnifier} alt="" width="32" height="32" />
+            <span>Search</span>
+          </button>
+        </li>
       </ul>
     </nav>
   </header>
@@ -154,24 +159,6 @@
             </ul>
           </nav>
         {/if}
-      {:else if page.kind === "search"}
-        <div class="pane">
-          <h1 class="pane-title">{page.title}</h1>
-          <form class="search-form" action={searchPath} method="get" role="search" data-search-form>
-            <label for="search-query">キーワード</label>
-            <div class="search-field">
-              <input id="search-query" name="q" type="search" autocomplete="off" />
-              <button class="xp-button" type="submit">検索</button>
-            </div>
-          </form>
-          <noscript><p class="search-status">検索するにはJavaScriptを有効にしてください。</p></noscript>
-          <p class="search-status" role="status" data-search-status></p>
-          <ul
-            class="file-list"
-            data-search-results
-            data-search-pages={JSON.stringify(page.searchPages ?? {})}
-          ></ul>
-        </div>
       {:else if page.kind === "404"}
         <section class="pane not-found">
           <span class="error-number">404</span>
@@ -221,7 +208,17 @@
               {#if page.tags?.length}
                 <ul class="document-tags" aria-label="タグ">
                   {#each page.tags as tag (tag)}
-                    <li><a href={tagSearchPath(tag)}>#{tag}</a></li>
+                    <li>
+                      <button
+                        type="button"
+                        aria-haspopup="dialog"
+                        aria-controls="search-window"
+                        data-search-open
+                        data-search-query={"#" + tag}
+                      >
+                        #{tag}
+                      </button>
+                    </li>
                   {/each}
                 </ul>
               {/if}
@@ -273,3 +270,30 @@
     </footer>
   </div>
 </div>
+<dialog
+  class="search-window"
+  id="search-window"
+  aria-labelledby="search-window-title"
+  data-search-window
+>
+  <div class="search-window-frame">
+    <div class="title-bar">
+      <img class="title-bar-icon" src={icons.magnifier} alt="" width="16" height="16" />
+      <h2 class="title-bar-text" id="search-window-title">検索</h2>
+      <button class="search-window-close" type="button" aria-label="閉じる" data-search-close>
+        <span class="title-bar-button title-bar-close"></span>
+      </button>
+    </div>
+    <div class="search-window-body">
+      <form class="search-form" role="search" data-search-form>
+        <label for="search-query">キーワード</label>
+        <div class="search-field">
+          <input id="search-query" name="q" type="search" autocomplete="off" />
+          <button class="xp-button" type="submit">検索</button>
+        </div>
+      </form>
+      <p class="search-status" role="status" data-search-status></p>
+      <ul class="file-list search-results" data-search-results></ul>
+    </div>
+  </div>
+</dialog>
