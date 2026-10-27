@@ -300,7 +300,8 @@ test.describe("記事ページの構成", () => {
 
   test("Xのシェアボタンでタイトルとcanonical URLを新しいタブに渡す", async ({ page }) => {
     await page.goto("/posts/abbey-road/");
-    const share = page.getByRole("link", { name: "Xでシェア" });
+    const share = page.getByRole("link", { name: "Xでポスト" });
+    await expect(share).toHaveText("ポスト");
     await expect(share).toHaveAttribute("target", "_blank");
     await expect(share.locator("svg path")).toHaveAttribute("fill", "#000");
     const url = new URL((await share.getAttribute("href"))!);
