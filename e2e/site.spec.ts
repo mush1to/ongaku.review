@@ -78,6 +78,37 @@ test.describe("トップページ", () => {
   });
 });
 
+test.describe("タイトルバー", () => {
+  const pages = [
+    { name: "トップページ", path: "/" },
+    { name: "2ページ目", path: "/page/2/" },
+    { name: "記事ページ", path: "/posts/abbey-road/" },
+    { name: "Aboutページ", path: "/about/" },
+    { name: "検索ページ", path: "/search/" },
+    { name: "404ページ", path: "/does-not-exist/" },
+  ];
+
+  for (const { name, path } of pages)
+    test(`${name}に操作できない飾りのタイトルバーを表示する`, async ({ page }) => {
+      await page.goto(path);
+      const titleBar = page.locator(".title-bar");
+      await expect(titleBar).toBeVisible();
+      await expect(titleBar.locator(".title-bar-text")).toHaveText("Internet");
+
+      const icon = titleBar.locator("img");
+      await expect(icon).toHaveAttribute("src", "/icons/silk/world.svg");
+      await expect
+        .poll(() =>
+          icon.evaluate((image: HTMLImageElement) => image.complete && image.naturalWidth > 0),
+        )
+        .toBe(true);
+
+      await expect(titleBar.locator(".title-bar-button")).toHaveCount(3);
+      await expect(titleBar).toHaveAttribute("aria-hidden", "true");
+      await expect(titleBar.locator("a, button")).toHaveCount(0);
+    });
+});
+
 test.describe("2ページ目以降", () => {
   test("アドレスバーにページ数を表示しない", async ({ page }) => {
     await page.goto("/page/2/");

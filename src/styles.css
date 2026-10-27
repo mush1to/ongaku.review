@@ -77,8 +77,11 @@ img {
   background: linear-gradient(
     180deg,
     #4a94ff 0,
-    #1466f0 0.75rem,
-    var(--xp-frame) 2.5rem,
+    #1a6df5 0.375rem,
+    #0f61ee 1.25rem,
+    #0a52dc 1.8125rem,
+    #0846c4 1.875rem,
+    var(--xp-frame) 2.25rem,
     #0a4fd6 6rem,
     var(--xp-frame) 100%
   );
@@ -87,13 +90,120 @@ img {
     0 0.5rem 1.5rem rgb(0 24 96 / 0.35);
 }
 
+.title-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.3125rem;
+  height: 1.875rem;
+  padding: 0 0.125rem 0 0.3125rem;
+  color: #fff;
+  font-family: var(--font-title);
+  font-size: 0.8125rem;
+  font-weight: 700;
+  line-height: 1;
+  text-shadow: 1px 1px 0 #0a1883;
+  cursor: default;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.title-bar-icon {
+  flex: none;
+  width: 1rem;
+  height: 1rem;
+}
+
+.title-bar-text {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.title-bar-controls {
+  display: flex;
+  flex: none;
+  gap: 2px;
+}
+
+.title-bar-button {
+  position: relative;
+  width: 21px;
+  height: 21px;
+  border: 1px solid #fff;
+  border-radius: 3px;
+  background: linear-gradient(180deg, #8fb6fb 0%, #3d7df3 40%, #2462e8 60%, #1a55dc 100%);
+  box-shadow:
+    inset 1px 1px 1px rgb(255 255 255 / 0.45),
+    inset -1px -1px 1px rgb(0 20 110 / 0.4);
+}
+
+.title-bar-close {
+  background: linear-gradient(180deg, #f6a78d 0%, #e66a43 40%, #d84b22 60%, #c53a14 100%);
+  box-shadow:
+    inset 1px 1px 1px rgb(255 255 255 / 0.45),
+    inset -1px -1px 1px rgb(110 20 0 / 0.4);
+}
+
+.title-bar-button::before,
+.title-bar-button::after {
+  position: absolute;
+  content: "";
+}
+
+.title-bar-minimize::before {
+  bottom: 4px;
+  left: 4px;
+  width: 7px;
+  height: 3px;
+  background: #fff;
+}
+
+.title-bar-restore::before,
+.title-bar-restore::after {
+  width: 8px;
+  height: 7px;
+  border: 1px solid #fff;
+  border-top-width: 2px;
+}
+
+.title-bar-restore::before {
+  top: 4px;
+  left: 7px;
+  /* Hide the back window where the front window overlaps it. */
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 5px 100%, 5px 3px, 0 3px);
+}
+
+.title-bar-restore::after {
+  top: 7px;
+  left: 4px;
+}
+
+.title-bar-close::before,
+.title-bar-close::after {
+  inset: 0;
+  width: 2px;
+  height: 13px;
+  margin: auto;
+  background: #fff;
+}
+
+.title-bar-close::before {
+  transform: rotate(45deg);
+}
+
+.title-bar-close::after {
+  transform: rotate(-45deg);
+}
+
 .window-header {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 0.5rem 0.75rem;
-  padding: 0.75rem 0.5rem 0.625rem;
+  padding: 0.25rem 0.5rem 0.625rem;
   color: #fff;
 }
 
@@ -737,7 +847,7 @@ main {
   }
 
   .window-header {
-    padding: 1.125rem 1rem 1rem;
+    padding: 0.5rem 1rem 1rem;
   }
 
   .site-description {

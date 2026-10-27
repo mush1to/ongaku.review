@@ -18,6 +18,15 @@
 
 <a class="skip-link" href="#main">本文へスキップ</a>
 <div class="window">
+  <div class="title-bar" aria-hidden="true">
+    <img class="title-bar-icon" src={icons.world} alt="" width="16" height="16" />
+    <span class="title-bar-text">Internet</span>
+    <span class="title-bar-controls">
+      <span class="title-bar-button title-bar-minimize"></span>
+      <span class="title-bar-button title-bar-restore"></span>
+      <span class="title-bar-button title-bar-close"></span>
+    </span>
+  </div>
   <header class="window-header">
     <div class="site-identity">
       {#if page.kind === "home"}
