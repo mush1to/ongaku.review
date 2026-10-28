@@ -138,9 +138,26 @@ function parse(source: string): { tree: Root; lenient: boolean } {
   }
 }
 
-/** A plain Markdown parse reads an MDX import or export as an ordinary paragraph. */
-const isEsmParagraph = (node: RootContent): boolean =>
-  node.type === "paragraph" && /^(import|export)\s/.test(textOfInline(node.children));
+/**
+ * A plain parse reads an import, an expression, and a JSX block as prose. Each
+ * paragraph is therefore read again as MDX from its own source, so only what
+ * MDX keeps as text reaches the description. A paragraph MDX cannot read, such
+ * as one holding an HTML comment, keeps the plain node.
+ */
+function readParagraph(node: RootContent, source: string): RootContent {
+  const start = node.position?.start.offset;
+  const end = node.position?.end.offset;
+  if (node.type !== "paragraph" || start === undefined || end === undefined) return node;
+  try {
+    const children = fromMarkdown(source.slice(start, end), {
+      extensions: [mdxjs()],
+      mdastExtensions: [mdxFromMarkdown()],
+    }).children;
+    return children.length === 1 ? children[0] : node;
+  } catch {
+    return node;
+  }
+}
 
 /**
  * Builds an article's description from the first paragraph of its body, so
@@ -150,7 +167,7 @@ const isEsmParagraph = (node: RootContent): boolean =>
  */
 export function articleDescription(source: string): string {
   const { tree, lenient } = parse(source);
-  const nodes = lenient ? tree.children.filter((node) => !isEsmParagraph(node)) : tree.children;
+  const nodes = lenient ? tree.children.map((node) => readParagraph(node, source)) : tree.children;
   const text = firstText(nodes, paragraphText) || firstText(nodes, blockText);
   return truncate(text.replace(/\s+/g, " ").trim());
 }

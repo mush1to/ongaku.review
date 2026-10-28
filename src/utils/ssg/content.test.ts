@@ -214,6 +214,35 @@ import Cover from "./Cover.svelte"
     expect((await loadDocs(root))[0]?.description).toBe("本文の説明です。");
   });
 
+  it("importやexportで始まる文章は説明に含める", async () => {
+    const describeAfterComment = async (body: string) => {
+      const root = await createRoot({ "first.md": article(`<!-- コメント -->\n\n${body}`) });
+      return (await loadDocs(root))[0]?.description;
+    };
+
+    expect(await describeAfterComment("import した音楽の話をします。")).toBe(
+      "import した音楽の話をします。",
+    );
+    expect(await describeAfterComment("export される音の話をします。")).toBe(
+      "export される音の話をします。",
+    );
+  });
+
+  it("HTMLコメントとMDXの式が同居する記事の説明に式を含めない", async () => {
+    const root = await createRoot({
+      "first.mdx": `---
+title: 記事
+---
+
+<!-- コメント -->
+
+{secretValue} についての記事です。
+`,
+    });
+
+    expect((await loadDocs(root))[0]?.description).toBe("についての記事です。");
+  });
+
   it("英文の句点で折り返した段落は空白を空ける", async () => {
     expect(await describeFirst("Done.\nNext line starts here.")).toBe(
       "Done. Next line starts here.",
