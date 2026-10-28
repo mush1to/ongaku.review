@@ -605,7 +605,7 @@ describe("loadUsers", () => {
     );
   });
 
-  it.each(["https://x.com/mush1to", "mush 1to", "a234567890123456", "1234"])(
+  it.each(["https://x.com/mush1to", "mush 1to", "a234567890123456"])(
     "Xのユーザー名でないx.com: %sを拒否する",
     async (value) => {
       const root = await createRoot({}, `mush1to:\n  name: むし\n  x.com: ${value}\n`);
@@ -615,6 +615,14 @@ describe("loadUsers", () => {
       );
     },
   );
+
+  it("文字列でないx.comを拒否する", async () => {
+    const root = await createRoot({}, "mush1to:\n  name: むし\n  x.com: 1234\n");
+
+    await expect(loadUsers(root)).rejects.toThrow(
+      "src/content/users.yaml: mush1to の x.com には X のユーザー名を英数字と _ の15文字以内の文字列で指定してください",
+    );
+  });
 
   it.each(["https://links.6410.org", "[links.6410.org]", "[ftp://example.com]", "[1]"])(
     "httpかhttpsのURLの配列でないlinks: %sを拒否する",
