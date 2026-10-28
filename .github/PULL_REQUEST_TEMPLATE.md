@@ -40,7 +40,6 @@
 -->
 
 - [ ] PR全体の差分を確認した
-- [ ] [CONTRIBUTING.md](https://github.com/mush1to/ongaku.review/blob/main/.github/CONTRIBUTING.md)の著作権譲渡条件に同意した（外部からの貢献では必須）
 - [ ] 第三者の素材を含む場合、その出典とライセンスを記載した
 - [ ] 必要なテストの追加・実行を行い、確認方法と結果を記載した
 - [ ] 関連ドキュメントを更新した、または更新を追跡するIssueを記載した
