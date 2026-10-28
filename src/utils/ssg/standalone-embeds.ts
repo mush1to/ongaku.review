@@ -45,6 +45,10 @@ function standaloneLinkUrl(node: MarkdownNode): string | undefined {
   return link.url;
 }
 
+/**
+ * Only a top-level block becomes a card. A post URL inside a quote or a list item
+ * stays a link, where the surrounding block already supplies the structure.
+ */
 export function createTweetUrlEmbeds(): MarkdownTransformer {
   return {
     name: "site-tweet-url-embeds",

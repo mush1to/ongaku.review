@@ -88,6 +88,18 @@ describe("createTweetUrlEmbeds", () => {
     ).toBe("paragraph");
   });
 
+  it("keeps a URL-only paragraph inside a blockquote and a list item", async () => {
+    const transformer = createTweetUrlEmbeds();
+    const ast = await transformer.transform(
+      fromMarkdown(
+        "> <https://x.com/jack/status/20>\n\n- <https://x.com/jack/status/21>\n",
+      ) as unknown as MarkdownNode,
+      context,
+    );
+    expect(ast.children?.[0]?.children?.[0]?.type).toBe("paragraph");
+    expect(ast.children?.[1]?.children?.[0]?.children?.[0]?.type).toBe("paragraph");
+  });
+
   it("leaves the document alone outside the root", async () => {
     const transformer = createTweetUrlEmbeds();
     const node: MarkdownNode = { type: "paragraph", children: [] };
