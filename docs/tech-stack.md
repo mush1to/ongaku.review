@@ -1,8 +1,6 @@
 ---
 title: 技術スタック
 description: ongaku.review で採用している技術の一覧
-date: 2026-10-26
-icon: document
 ---
 
 | 領域           | 採用している技術                                     |
