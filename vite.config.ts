@@ -15,6 +15,7 @@ import {
   loadSearchPages,
 } from "./src/utils/ssg/content";
 import { site } from "./src/config/site";
+import { collectEmbedAssets, embedOptions } from "./src/utils/ssg/embeds";
 import { tagRoutePath } from "./src/utils/search-path";
 
 export default defineConfig(async ({ command, mode }) => {
@@ -46,6 +47,7 @@ export default defineConfig(async ({ command, mode }) => {
       ],
       manifest: async (ctx) => {
         const docs = [...(await loadDocs(ctx.root)), await loadAboutPage(ctx.root)];
+        const embedAssets = await collectEmbedAssets(ctx, docs);
         const result = await planCollectionAssetsFromDocuments({
           root: ctx.root,
           contentRoot: "src/content",
@@ -53,11 +55,14 @@ export default defineConfig(async ({ command, mode }) => {
             documentPath: doc.documentPath,
             pagePath: doc.path,
           })),
-          extraAssets: docs.flatMap(({ thumbnail }) =>
-            thumbnail
-              ? [{ sourcePath: thumbnail.sourcePath, publicPath: thumbnail.publicPath }]
-              : [],
-          ),
+          extraAssets: [
+            ...docs.flatMap(({ thumbnail }) =>
+              thumbnail
+                ? [{ sourcePath: thumbnail.sourcePath, publicPath: thumbnail.publicPath }]
+                : [],
+            ),
+            ...embedAssets,
+          ],
         });
         if (result.diagnostics.length)
           throw new Error(result.diagnostics.map((item) => item.message).join("\n"));
@@ -65,6 +70,7 @@ export default defineConfig(async ({ command, mode }) => {
       },
     },
     oxContent: {
+      ...embedOptions(root),
       srcDir: contentDirectory,
       docs: false,
       highlight: true,

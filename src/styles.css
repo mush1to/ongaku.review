@@ -1,3 +1,6 @@
+@import "@ox-content/vite-plugin/styles/social.css";
+@import "@ox-content/vite-plugin/styles/twitter-full.css";
+
 :root {
   --xp-frame: #0b55e0;
   --xp-frame-edge: #0832a4;
@@ -29,6 +32,13 @@
   --font-title:
     "Trebuchet MS", "Segoe UI", Tahoma, "Hiragino Sans", "Noto Sans JP", Meiryo, sans-serif;
   --font-mono: Consolas, "SFMono-Regular", Menlo, "Courier New", monospace;
+  --octc-color-text: var(--color-text);
+  --octc-color-text-muted: var(--color-muted);
+  --octc-color-border: var(--color-rule);
+  --octc-color-primary: var(--color-link);
+  --octc-color-bg: #fff;
+  --octc-color-bg-alt: var(--color-code-bg);
+  --octc-color-code-bg: var(--color-code-bg);
   color-scheme: light;
 }
 

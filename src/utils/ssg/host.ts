@@ -14,7 +14,7 @@ import { site } from "../../config/site";
 import type { AdjacentPost, PageData, Pagination } from "../../pages/page-data";
 import { normalizeTag, tagRoutePath } from "../search-path";
 import { listPosts, loadAboutPage, loadDocs, type DocPage } from "./content";
-import { preserveFullWidthSpaces } from "./whitespace";
+import { renderDocumentMarkdown } from "./embeds";
 
 const components = (root: string) => ({
   SiteStatus: root + "/src/components/SiteStatus.svelte",
@@ -151,10 +151,7 @@ async function markdown(ctx: OxContentCustomHostBaseContext, source: string, doc
       return { html: output.body, head: output.head };
     },
   });
-  const markdownResult = await ctx.markdown.render({
-    source: preserveFullWidthSpaces(source),
-    documentPath,
-  });
+  const markdownResult = await renderDocumentMarkdown(ctx, { source, documentPath });
   const result: RenderSvelteHtmlHostResult = await renderIslands(markdownResult.html, {
     documentPath,
     imports: markdownResult.transform.imports,
