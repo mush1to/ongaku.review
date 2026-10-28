@@ -229,18 +229,26 @@ import Cover from "./Cover.svelte"
   });
 
   it("HTMLコメントとMDXの式が同居する記事の説明に式を含めない", async () => {
-    const root = await createRoot({
-      "first.mdx": `---
+    const describeAfterComment = async (body: string) => {
+      const root = await createRoot({
+        "first.mdx": `---
 title: 記事
 ---
 
 <!-- コメント -->
 
-{secretValue} についての記事です。
+${body}
 `,
-    });
+      });
+      return (await loadDocs(root))[0]?.description;
+    };
 
-    expect((await loadDocs(root))[0]?.description).toBe("についての記事です。");
+    expect(await describeAfterComment("{secretValue} についての記事です。")).toBe(
+      "についての記事です。",
+    );
+    expect(await describeAfterComment("{\n  secretValue\n}\n\n本文の説明です。")).toBe(
+      "本文の説明です。",
+    );
   });
 
   it("英文の句点で折り返した段落は空白を空ける", async () => {
