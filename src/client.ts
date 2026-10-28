@@ -12,6 +12,7 @@ if (searchWindow && searchForm && searchInput) {
   const searchStatus = searchWindow.querySelector<HTMLElement>("[data-search-status]");
   const importError =
     "検索を読み込めませんでした。もう一度開いてください。改善しない場合はページを再読み込みしてください。";
+  const root = document.documentElement;
   let searchModule: Promise<void> | undefined;
   let searchInitialized = false;
   let composing = false;
@@ -49,6 +50,10 @@ if (searchWindow && searchForm && searchInput) {
     opener.addEventListener("click", () => {
       const query = opener.dataset.searchQuery;
       const initialized = searchInitialized;
+      root.style.setProperty(
+        "--search-scrollbar-width",
+        `${window.innerWidth - root.clientWidth}px`,
+      );
       searchWindow.showModal();
       if (query) searchInput.value = query;
       searchInput.focus();

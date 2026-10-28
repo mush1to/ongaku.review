@@ -607,6 +607,35 @@ test.describe("検索ウィンドウ", () => {
     await expect(page).toHaveURL(/\/posts\/abbey-road$/);
   });
 
+  test("結果が入っても上端の位置を変えず、下に同じ余白を残して広がる", async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 600 });
+    await page.goto("/");
+    const searchWindow = await openSearchWindow(page);
+    const emptyBox = await searchWindow.boundingBox();
+    await searchWindow.getByRole("searchbox", { name: "キーワード" }).fill("ア");
+    await expect(searchWindow.getByRole("status")).toContainText("「ア」の検索結果");
+    const filledBox = await searchWindow.boundingBox();
+
+    expect(filledBox?.y).toBeCloseTo(emptyBox?.y ?? 0, 0);
+    expect(600 - ((filledBox?.y ?? 0) + (filledBox?.height ?? 0))).toBeCloseTo(
+      filledBox?.y ?? 0,
+      0,
+    );
+  });
+
+  test("背景を右端まで覆い、開いたときにページを横に動かさない", async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 600 });
+    await page.goto("/posts/abbey-road/");
+    const x = () => page.locator(".window").evaluate((el) => el.getBoundingClientRect().x);
+    const before = await x();
+    await openSearchWindow(page);
+
+    expect(
+      await page.evaluate(() => document.elementFromPoint(window.innerWidth - 1, 100)?.tagName),
+    ).toBe("DIALOG");
+    expect(await x()).toBeCloseTo(before, 0);
+  });
+
   test("閉じるボタン・Esc・ウィンドウの外のクリックで閉じ、Searchボタンにフォーカスを戻す", async ({
     page,
   }) => {
