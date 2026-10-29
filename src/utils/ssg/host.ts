@@ -16,6 +16,7 @@ import type { AdjacentPost, PageData, Pagination } from "../../pages/page-data";
 import { normalizeTag, tagRoutePath } from "../search-path";
 import { listPosts, loadAboutPage, loadDocs, type ContentImage, type DocPage } from "./content";
 import { renderDocumentMarkdown } from "./embeds";
+import { pageHead, pageUrl } from "./meta";
 
 const components = (root: string) => ({
   SiteStatus: root + "/src/components/SiteStatus.svelte",
@@ -178,7 +179,12 @@ async function renderPage(
   const page: PageData = basePage.isPost
     ? {
         ...basePage,
-        thumbnail: thumbnail && { src: imageSrc(thumbnail) },
+        thumbnail: thumbnail && {
+          src: imageSrc(thumbnail),
+          width: thumbnail.width,
+          height: thumbnail.height,
+          mediaType: thumbnail.mediaType,
+        },
         author: author && {
           name: author.name,
           description: author.description,
@@ -194,54 +200,12 @@ async function renderPage(
   const rendered = render(pageModule.default, {
     props: { page: { ...page, body: body?.html } },
   });
-  const title =
-    page.kind === "404" || page.path !== "/" ? page.title + " | " + site.title : site.title;
-  const loc = site.url + (page.path === "/" ? "" : page.path);
-  const canonical = page.kind === "404" ? undefined : loc;
+  const loc = pageUrl(site.url, page.path);
   const assets = ctx.assets.document({
     clientEntries: ["src/client.ts"],
     sharedStyles: ctx.mode === "serve" ? ["/src/styles.css"] : [],
   });
-  const structuredData =
-    page.kind === "404"
-      ? undefined
-      : page.path === "/"
-        ? {
-            "@context": "https://schema.org",
-            "@type": "WebSite",
-            name: site.name,
-            url: loc,
-            description: site.description,
-          }
-        : {
-            "@context": "https://schema.org",
-            "@type": "WebPage",
-            name: page.title,
-            url: loc,
-            description: page.description,
-            isPartOf: { "@type": "WebSite", name: site.name, url: site.url },
-            inLanguage: "ja",
-          };
-  const head = renderHead({
-    // Report an unsafe canonical or OGP image instead of dropping it silently.
-    validation: "strict",
-    site: { name: site.name, url: site.url, locale: "ja" },
-    title,
-    titleSuffix: false,
-    description: page.description,
-    canonical,
-    robots: ctx.mode === "serve" || page.kind === "404" ? "noindex, nofollow" : undefined,
-    ogType: "website",
-    twitterCard: page.thumbnail ? "summary_large_image" : "summary",
-    ogImage: page.thumbnail ? new URL(page.thumbnail.src, site.url).href : undefined,
-    emitSiteName: true,
-    jsonLd: structuredData && [{ json: JSON.stringify(structuredData) }],
-    metas: [
-      { name: "viewport", content: "width=device-width,initial-scale=1" },
-      { name: "color-scheme", content: "light" },
-      { name: "theme-color", content: site.themeColor },
-    ],
-  });
+  const head = renderHead(pageHead({ page, site, serve: ctx.mode === "serve" }));
   const headDiagnostic = head.diagnostics.find((item) => item.strict);
   if (headDiagnostic) throw new Error(headDiagnostic.message);
   let html =

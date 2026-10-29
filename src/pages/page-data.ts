@@ -14,6 +14,11 @@ export interface PostSummary {
 
 export interface Thumbnail {
   src: string;
+  /** Pixel size read from the image file, for the OGP image hint. */
+  width?: number;
+  height?: number;
+  /** Media type the site serves the image as. */
+  mediaType: string;
 }
 
 export interface AuthorLink {

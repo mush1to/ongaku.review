@@ -523,7 +523,7 @@ test.describe("記事ページの構成", () => {
     expect(firstLine).toContain("固定給");
   });
 
-  test("見出し画像を1200:630で表示し、OGPとXのカードに使う", async ({ page }) => {
+  test("見出し画像を1200:630で表示し、記事のOGPとXのカードに使う", async ({ page }) => {
     await page.goto("/posts/pagination-check-01");
     const image = page.locator(".document-thumbnail img");
     await expect(image).toHaveAttribute("alt", "");
@@ -539,17 +539,74 @@ test.describe("記事ページの構成", () => {
     const ogImage = await page.locator('meta[property="og:image"]').getAttribute("content");
     expect(ogImage).toMatch(/^https:\/\/ongaku\.review\/assets\/content\/[0-9a-f]+\.png$/);
     expect(new URL(ogImage!).pathname).toBe(await image.getAttribute("src"));
+    await expect(page.locator('meta[name="twitter:image"]')).toHaveAttribute("content", ogImage!);
     await expect(page.locator('meta[name="twitter:card"]')).toHaveAttribute(
       "content",
       "summary_large_image",
     );
+    await expect(page.locator('meta[property="og:type"]')).toHaveAttribute("content", "article");
+    await expect(page.locator('meta[property="article:published_time"]')).toHaveAttribute(
+      "content",
+      "2026-10-05T00:00:00+09:00",
+    );
+    await expect(page.locator('meta[property="article:modified_time"]')).toHaveAttribute(
+      "content",
+      "2026-10-05T00:00:00+09:00",
+    );
+    await expect(page.locator('meta[property="og:image:width"]')).toHaveAttribute(
+      "content",
+      "1200",
+    );
+    await expect(page.locator('meta[property="og:image:height"]')).toHaveAttribute(
+      "content",
+      "630",
+    );
+    await expect(page.locator('meta[property="og:image:type"]')).toHaveAttribute(
+      "content",
+      "image/png",
+    );
+    await expect(page.locator('meta[property="og:image:alt"]')).toHaveAttribute(
+      "content",
+      "ページ送り確認用の記事 1",
+    );
+    await expect(page.locator('meta[name="twitter:image:alt"]')).toHaveAttribute(
+      "content",
+      "ページ送り確認用の記事 1",
+    );
+    await expect(page.locator('meta[property="og:locale"]')).toHaveAttribute("content", "ja_JP");
   });
 
-  test("見出し画像のない記事はsummaryカードのままにする", async ({ page }) => {
+  test("見出し画像のない記事はサイトアイコンのsummaryカードにする", async ({ page, request }) => {
     await page.goto("/posts/abbey-road");
     await expect(page.locator(".document-thumbnail")).toHaveCount(0);
-    await expect(page.locator('meta[property="og:image"]')).toHaveCount(0);
     await expect(page.locator('meta[name="twitter:card"]')).toHaveAttribute("content", "summary");
+    await expect(page.locator('meta[property="og:type"]')).toHaveAttribute("content", "article");
+    await expect(page.locator('meta[property="og:image"]')).toHaveAttribute(
+      "content",
+      "https://ongaku.review/icon-512.png",
+    );
+    await expect(page.locator('meta[name="twitter:image"]')).toHaveAttribute(
+      "content",
+      "https://ongaku.review/icon-512.png",
+    );
+    await expect(page.locator('meta[property="og:image:width"]')).toHaveAttribute("content", "512");
+    await expect(page.locator('meta[property="og:image:height"]')).toHaveAttribute(
+      "content",
+      "512",
+    );
+    await expect(page.locator('meta[property="og:image:type"]')).toHaveAttribute(
+      "content",
+      "image/png",
+    );
+    await expect(page.locator('meta[property="og:image:alt"]')).toHaveAttribute(
+      "content",
+      "ongaku.review",
+    );
+    await expect(page.locator('meta[property="article:published_time"]')).toHaveAttribute(
+      "content",
+      /^\d{4}-\d{2}-\d{2}T00:00:00\+09:00$/,
+    );
+    expect((await request.get("/icon-512.png")).status()).toBe(200);
   });
 
   test("Xのシェアボタンでタイトルとcanonical URLを新しいタブに渡す", async ({ page }) => {

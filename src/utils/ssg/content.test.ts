@@ -384,6 +384,7 @@ describe("thumbnail", () => {
     expect(doc?.thumbnail).toEqual({
       sourcePath: path.join(root, "src/content/posts/img/cover.png"),
       publicPath: "/posts/first/img/cover.png",
+      mediaType: "image/png",
     });
   });
 
@@ -395,6 +396,7 @@ describe("thumbnail", () => {
     expect(doc?.thumbnail).toEqual({
       sourcePath: path.join(root, "src/content/posts/img/cover.png"),
       publicPath: "/posts/first/img/cover.png",
+      mediaType: "image/png",
     });
   });
 
@@ -619,7 +621,7 @@ describe("loadUsers", () => {
       id: "mush1to",
       name: "むしにゃんこ",
       description: "趣味で固定給貰ってます。",
-      icon: { sourcePath: icon, publicPath: "/users/mush1to.webp" },
+      icon: { sourcePath: icon, publicPath: "/users/mush1to.webp", mediaType: "image/webp" },
       links: [
         { kind: "x", url: "https://x.com/mush1to", label: "X（@mush1to）" },
         { kind: "website", url: "https://links.6410.org/", label: "links.6410.org" },

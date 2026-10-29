@@ -8,6 +8,7 @@ import { site } from "../../config/site";
 import type { AuthorLink } from "../../pages/page-data";
 import { normalizeSearchPath, normalizeTag, tagRoutePath } from "../search-path";
 import { articleDescription, descriptionLimit } from "./description";
+import { imageSize } from "./image-size";
 
 export const contentDirectory = "src/content/posts";
 export const aboutDocument = "src/content/about.mdx";
@@ -16,6 +17,12 @@ export const usersDirectory = "src/content/users";
 const assetRoot = "src/content";
 /** Formats X accepts for summary_large_image cards. User icons accept the same formats. */
 const imageExtensions = [".jpg", ".jpeg", ".png", ".webp"];
+const imageMediaTypes: Record<string, string> = {
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+  ".png": "image/png",
+  ".webp": "image/webp",
+};
 const userIdPattern = /^[A-Za-z0-9_-]+$/;
 const xUsernamePattern = /^[A-Za-z0-9_]{1,15}$/;
 /** Longest article title, name, and description, counted in code points. */
@@ -27,6 +34,11 @@ export interface ContentImage {
   sourcePath: string;
   /** Public alias resolved against the referring file's URL, as body images are. */
   publicPath: string;
+  /** Media type the site serves the file as, for the OGP image hint. */
+  mediaType: string;
+  /** Pixel size read from the image header. Undefined when it cannot be read. */
+  width?: number;
+  height?: number;
 }
 
 export interface User {
@@ -248,9 +260,13 @@ async function readImage(
   if (!(await stat(sourcePath).catch(() => null))?.isFile())
     throw new Error(`${file}: ${field} の画像 ${reference} が見つかりません`);
   const encodedReference = reference.split("/").map(encodeURIComponent).join("/");
+  const size = imageSize(await readFile(sourcePath));
   return {
     sourcePath,
     publicPath: new URL(encodedReference, "https://local" + publicBase).pathname,
+    mediaType: imageMediaTypes[path.extname(sourcePath).toLowerCase()]!,
+    width: size?.width,
+    height: size?.height,
   };
 }
 
