@@ -1,5 +1,6 @@
 import { readFile, readdir, realpath, stat } from "node:fs/promises";
 import path from "node:path";
+import { buildCollectionManifest, prepareSource } from "@ox-content/napi";
 import { parse } from "yaml";
 import { buildSearchIndex } from "@ox-content/vite-plugin";
 import { defaultPostIcon, isPostIcon, postIcons, type PostIcon } from "../../config/icons";
@@ -58,16 +59,26 @@ export interface DocPage {
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   !!value && typeof value === "object" && !Array.isArray(value);
 
-function readFrontmatter(source: string): Record<string, unknown> {
-  const match = /^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/.exec(source);
-  if (!match) return {};
-  const data: unknown = parse(match[1]);
-  return isRecord(data) ? data : {};
+const collectionName = "posts";
+
+interface ManifestEntry {
+  /** Source path relative to the collection root, with slash separators. */
+  source: string;
+  /** Frontmatter title, else the first H1 heading, else the formatted file name. */
+  title: string;
+  frontmatter: Record<string, unknown>;
 }
 
-function firstHeading(source: string): string | undefined {
-  const match = /^#\s+(.+)$/m.exec(source);
-  return match?.[1].trim();
+/** One native pass over the content directory: file discovery, frontmatter, and titles. */
+function readManifest(contentRoot: string): ManifestEntry[] {
+  const json = buildCollectionManifest({
+    srcDir: contentRoot,
+    extensions: [".md", ".mdx"],
+    frontmatter: true,
+    collections: [{ name: collectionName, source: ["**/*.md", "**/*.mdx"], include: [] }],
+  });
+  const manifest = JSON.parse(json) as { collections: Record<string, ManifestEntry[]> };
+  return manifest.collections[collectionName] ?? [];
 }
 
 function contentPath(relativePath: string): string {
@@ -282,30 +293,48 @@ function readAuthor(value: unknown, file: string, users: ReadonlyMap<string, Use
   return user;
 }
 
+const documents = new Map<string, Promise<DocPage[]>>();
+
+/** Drops the cached documents, so the next `loadDocs` reads the files again. */
+export function invalidateContentCache(): void {
+  documents.clear();
+}
+
 /**
  * Loads site content from `src/content/posts` only. The home page, pagination,
  * search index, and feed all use this result, so Markdown elsewhere in the
  * repository (README, agent skills, and so on) never appears on the site.
+ *
+ * One build reads and parses each file once: the collection manifest, the host
+ * routes, the feed outputs, and the search files all share this result.
  */
 export async function loadDocs(root: string): Promise<DocPage[]> {
+  const cached = documents.get(root);
+  if (cached) return cached;
+  const pending = readDocs(root);
+  documents.set(root, pending);
+  void pending.catch(() => {
+    if (documents.get(root) === pending) documents.delete(root);
+  });
+  return pending;
+}
+
+async function readDocs(root: string): Promise<DocPage[]> {
   const contentRoot = path.join(root, contentDirectory);
-  const entries = await readdir(contentRoot, { recursive: true, withFileTypes: true });
   const users = await loadUsers(root);
   const pages: DocPage[] = [];
-  for (const entry of entries) {
-    if (!entry.isFile() || !/\.mdx?$/i.test(entry.name)) continue;
-    const documentPath = path.join(entry.parentPath, entry.name);
-    const relativePath = path.relative(contentRoot, documentPath);
-    if (relativePath.startsWith("..") || path.isAbsolute(relativePath)) continue;
-    if (relativePath.split(path.sep).some((part) => part.startsWith("_"))) continue;
+  for (const entry of readManifest(contentRoot)) {
+    const relativePath = entry.source;
+    if (relativePath.split("/").some((part) => part.startsWith("_"))) continue;
+    const documentPath = path.join(contentRoot, relativePath);
     const source = await readFile(documentPath, "utf8");
-    const frontmatter = readFrontmatter(source);
+    const frontmatter = entry.frontmatter;
     const file = path.relative(root, documentPath).split(path.sep).join("/");
     if (!readIsPublished(frontmatter.isPublished, file)) continue;
     const title =
       typeof frontmatter.title === "string" && frontmatter.title.trim()
         ? frontmatter.title.trim()
-        : (firstHeading(source) ?? path.basename(relativePath).replace(/\.mdx?$/i, ""));
+        : entry.title;
     if ([...title].length > titleLimit)
       throw new Error(`${file}: title は${titleLimit}文字以内で指定してください`);
     const description = articleDescription(source);
@@ -337,7 +366,7 @@ export async function loadDocs(root: string): Promise<DocPage[]> {
 export async function loadAboutPage(root: string): Promise<DocPage> {
   const documentPath = path.join(root, aboutDocument);
   const source = await readFile(documentPath, "utf8");
-  const frontmatter = readFrontmatter(source);
+  const { frontmatter } = prepareSource(source);
   return {
     path: "/about",
     indexPath: "/about",

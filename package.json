@@ -26,6 +26,7 @@
   },
   "devDependencies": {
     "@ox-content/islands": "^3.4.0",
+    "@ox-content/napi": "3.4.0",
     "@ox-content/vite-plugin": "^3.4.0",
     "@ox-content/vite-plugin-svelte": "^3.4.0",
     "@playwright/test": "^1.64.1",

@@ -7,6 +7,7 @@ import {
   rewriteCollectionAssetUrls,
 } from "@ox-content/vite-plugin";
 import {
+  invalidateContentCache,
   listPosts,
   loadAboutPage,
   loadDocs,
@@ -34,6 +35,7 @@ async function createRoot(
 const post = (frontmatter: string) => `---\n${frontmatter}\n---\n\n# 見出し\n`;
 
 afterEach(async () => {
+  invalidateContentCache();
   await Promise.all(roots.splice(0).map((root) => rm(root, { recursive: true, force: true })));
 });
 
@@ -122,6 +124,14 @@ created: 2026-10-01
     await expect(loadDocs(root)).rejects.toThrow(
       "src/content/posts/long.md: title は100文字以内で指定してください",
     );
+  });
+
+  it("titleもH1見出しもない記事は、ファイル名から作った名前をtitleにする", async () => {
+    const root = await createRoot({
+      "hello-world.md": "---\ncreated: 2026-10-01\n---\n\n本文です。\n",
+    });
+
+    expect((await loadDocs(root))[0]?.title).toBe("Hello World");
   });
 });
 
@@ -705,6 +715,28 @@ describe("loadSearchPages", () => {
       "/new": { path: "/posts/new", title: "新しい記事", icon: "cd", tags: [] },
       "/old": { path: "/posts/old", title: "古い記事", icon: "document", tags: ["ロック"] },
     });
+  });
+});
+
+describe("loadDocsの再利用", () => {
+  it("同じrootでは読み込み結果を再利用し、キャッシュを捨てると読み直す", async () => {
+    const root = await createRoot({ "first.md": post("title: 最初の記事") });
+
+    const first = await loadDocs(root);
+    await writeFile(
+      path.join(root, "src/content/posts/second.md"),
+      post("title: 2件目の記事"),
+      "utf8",
+    );
+
+    expect(await loadDocs(root)).toBe(first);
+
+    invalidateContentCache();
+
+    expect((await loadDocs(root)).map((doc) => doc.path)).toEqual([
+      "/posts/first",
+      "/posts/second",
+    ]);
   });
 });
 
