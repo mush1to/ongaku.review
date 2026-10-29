@@ -193,6 +193,7 @@ test.describe("アイコン", () => {
   test("マニフェストをJSONとして配信し、参照するアイコンを返す", async ({ request }) => {
     const response = await request.get("/site.webmanifest");
     expect(response.ok()).toBe(true);
+    expect(response.headers()["content-type"]).toContain("application/manifest+json");
     const manifest = (await response.json()) as {
       name: string;
       short_name: string;
@@ -212,6 +213,7 @@ test.describe("アイコン", () => {
     });
     expect(manifest.icons.map((icon) => [icon.src, icon.sizes, icon.purpose])).toEqual([
       ["/favicon-32.png", "32x32", undefined],
+      ["/icon-512-any.png", "512x512", undefined],
       ["/icon-192.png", "192x192", "maskable"],
       ["/icon-512.png", "512x512", "maskable"],
     ]);
