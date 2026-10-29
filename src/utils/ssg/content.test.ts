@@ -7,6 +7,7 @@ import {
   rewriteCollectionAssetUrls,
 } from "@ox-content/vite-plugin";
 import {
+  invalidateContentCache,
   listPosts,
   loadAboutPage,
   loadDocs,
@@ -34,6 +35,7 @@ async function createRoot(
 const post = (frontmatter: string) => `---\n${frontmatter}\n---\n\n# 見出し\n`;
 
 afterEach(async () => {
+  invalidateContentCache();
   await Promise.all(roots.splice(0).map((root) => rm(root, { recursive: true, force: true })));
 });
 
@@ -51,6 +53,15 @@ describe("loadDocs", () => {
     ]);
   });
 
+  it("拡張子の大文字・小文字を問わず記事として読み込む", async () => {
+    const root = await createRoot({
+      "UPPER.MD": post("title: 大文字"),
+      "mixed.MdX": post("title: 混在"),
+    });
+
+    expect((await loadDocs(root)).map((doc) => doc.path)).toEqual(["/posts/mixed", "/posts/UPPER"]);
+  });
+
   it.each(['"false"', "0", "null", "[]", "{}"])(
     "真偽値でないisPublished: %sを拒否する",
     async (value) => {
@@ -61,6 +72,22 @@ describe("loadDocs", () => {
       );
     },
   );
+
+  it("読み込めないフロントマターの記事は公開せずにビルドを失敗させる", async () => {
+    const root = await createRoot({
+      "broken.md": "---\ntitle: 静かな怒り: OK Computer\nisPublished: false\n---\n\n本文です。\n",
+    });
+
+    await expect(loadDocs(root)).rejects.toThrow(
+      "src/content/posts/broken.md: フロントマターを読み込めません",
+    );
+  });
+
+  it("コメントだけのフロントマターは空として扱う", async () => {
+    const root = await createRoot({ "comment.md": "---\n# メモ\n---\n\n# 見出し\n" });
+
+    expect((await loadDocs(root))[0]?.title).toBe("見出し");
+  });
 
   it("createdとupdatedを読み取る", async () => {
     const root = await createRoot({
@@ -122,6 +149,44 @@ created: 2026-10-01
     await expect(loadDocs(root)).rejects.toThrow(
       "src/content/posts/long.md: title は100文字以内で指定してください",
     );
+  });
+
+  it("titleもH1見出しもない記事は、ファイル名から作った名前をtitleにする", async () => {
+    const root = await createRoot({
+      "hello-world.md": "---\ncreated: 2026-10-01\n---\n\n本文です。\n",
+    });
+
+    expect((await loadDocs(root))[0]?.title).toBe("Hello World");
+  });
+
+  it("H2見出しで始まる記事のtitleにH2見出しを使わない", async () => {
+    const root = await createRoot({
+      "h2-first.md": "---\ncreated: 2026-10-01\n---\n\n## 小見出し\n\n本文です。\n",
+    });
+
+    expect((await loadDocs(root))[0]?.title).toBe("H2 First");
+  });
+
+  it("H2見出しのあとにある最初のH1見出しをtitleにする", async () => {
+    const root = await createRoot({
+      "later.md": "---\ncreated: 2026-10-01\n---\n\n## 小見出し\n\n# 記事のH1\n",
+    });
+
+    expect((await loadDocs(root))[0]?.title).toBe("記事のH1");
+  });
+
+  it("空のtitleはH1見出しにフォールバックする", async () => {
+    const root = await createRoot({ "empty.md": post('title: ""') });
+
+    expect((await loadDocs(root))[0]?.title).toBe("見出し");
+  });
+
+  it("フロントマターのYAMLコメントをtitleにしない", async () => {
+    const root = await createRoot({
+      "comment.md": "---\n# editorial note\ncreated: 2026-10-01\n---\n\n本文です。\n",
+    });
+
+    expect((await loadDocs(root))[0]?.title).toBe("Comment");
   });
 });
 
@@ -673,6 +738,18 @@ describe("loadAboutPage", () => {
     });
     expect((await loadDocs(root)).map((doc) => doc.path)).toEqual(["/posts/about"]);
   });
+
+  it("読み込めないフロントマターのAboutはビルドを失敗させる", async () => {
+    const root = await createRoot({});
+    await writeFile(
+      path.join(root, "src/content/about.mdx"),
+      "---\ntitle: 静かな怒り: About\n---\n\n本文です。\n",
+    );
+
+    await expect(loadAboutPage(root)).rejects.toThrow(
+      "src/content/about.mdx: フロントマターを読み込めません",
+    );
+  });
 });
 
 describe("loadSearchIndex", () => {
@@ -705,6 +782,28 @@ describe("loadSearchPages", () => {
       "/new": { path: "/posts/new", title: "新しい記事", icon: "cd", tags: [] },
       "/old": { path: "/posts/old", title: "古い記事", icon: "document", tags: ["ロック"] },
     });
+  });
+});
+
+describe("loadDocsの再利用", () => {
+  it("同じrootでは読み込み結果を再利用し、キャッシュを捨てると読み直す", async () => {
+    const root = await createRoot({ "first.md": post("title: 最初の記事") });
+
+    const first = await loadDocs(root);
+    await writeFile(
+      path.join(root, "src/content/posts/second.md"),
+      post("title: 2件目の記事"),
+      "utf8",
+    );
+
+    expect(await loadDocs(root)).toBe(first);
+
+    invalidateContentCache();
+
+    expect((await loadDocs(root)).map((doc) => doc.path)).toEqual([
+      "/posts/first",
+      "/posts/second",
+    ]);
   });
 });
 

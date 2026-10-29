@@ -8,6 +8,7 @@ import type { PreviewServer, ViteDevServer } from "vite";
 import {
   aboutDocument,
   contentDirectory,
+  invalidateContentCache,
   listPosts,
   loadAboutPage,
   loadDocs,
@@ -191,6 +192,10 @@ export default defineConfig(async ({ command, mode }) => {
             });
         },
         configureServer(server: ViteDevServer) {
+          const contentRoot = path.resolve(root, "src/content");
+          server.watcher.on("all", (_event, file) => {
+            if (path.resolve(file).startsWith(contentRoot + path.sep)) invalidateContentCache();
+          });
           server.middlewares.use(async (request, response, next) => {
             try {
               const url = new URL(request.url ?? "/", "http://localhost");
