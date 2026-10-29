@@ -1,6 +1,7 @@
 import path from "node:path";
 import type { Component } from "svelte";
 import {
+  renderHead,
   rewriteCollectionAssetUrls,
   type OxContentCustomHostBaseContext,
   type OxContentCustomHostModule,
@@ -195,15 +196,12 @@ async function renderPage(
   });
   const title =
     page.kind === "404" || page.path !== "/" ? page.title + " | " + site.title : site.title;
-  const canonical = site.url + (page.path === "/" ? "" : page.path);
+  const loc = site.url + (page.path === "/" ? "" : page.path);
+  const canonical = page.kind === "404" ? undefined : loc;
   const assets = ctx.assets.document({
     clientEntries: ["src/client.ts"],
     sharedStyles: ctx.mode === "serve" ? ["/src/styles.css"] : [],
   });
-  const robots =
-    ctx.mode === "serve" || page.kind === "404"
-      ? '<meta name="robots" content="noindex, nofollow">'
-      : "";
   const structuredData =
     page.kind === "404"
       ? undefined
@@ -212,69 +210,46 @@ async function renderPage(
             "@context": "https://schema.org",
             "@type": "WebSite",
             name: site.name,
-            url: canonical,
+            url: loc,
             description: site.description,
           }
         : {
             "@context": "https://schema.org",
             "@type": "WebPage",
             name: page.title,
-            url: canonical,
+            url: loc,
             description: page.description,
             isPartOf: { "@type": "WebSite", name: site.name, url: site.url },
             inLanguage: "ja",
           };
-  const jsonLd = structuredData
-    ? '<script type="application/ld+json">' +
-      JSON.stringify(structuredData).replace(/</g, "\\u003c") +
-      "</script>"
-    : "";
+  const head = renderHead({
+    // Report an unsafe canonical or OGP image instead of dropping it silently.
+    validation: "strict",
+    site: { name: site.name, url: site.url, locale: "ja" },
+    title,
+    titleSuffix: false,
+    description: page.description,
+    canonical,
+    robots: ctx.mode === "serve" || page.kind === "404" ? "noindex, nofollow" : undefined,
+    ogType: "website",
+    twitterCard: page.thumbnail ? "summary_large_image" : "summary",
+    ogImage: page.thumbnail ? new URL(page.thumbnail.src, site.url).href : undefined,
+    emitSiteName: true,
+    jsonLd: structuredData && [{ json: JSON.stringify(structuredData) }],
+    metas: [
+      { name: "viewport", content: "width=device-width,initial-scale=1" },
+      { name: "color-scheme", content: "light" },
+      { name: "theme-color", content: site.themeColor },
+    ],
+  });
+  const headDiagnostic = head.diagnostics.find((item) => item.strict);
+  if (headDiagnostic) throw new Error(headDiagnostic.message);
   let html =
     '<!doctype html><html lang="ja"><head><meta charset="utf-8">' +
-    '<meta name="viewport" content="width=device-width,initial-scale=1">' +
-    '<meta name="color-scheme" content="light">' +
-    '<meta name="theme-color" content="' +
-    site.themeColor +
-    '">' +
-    "<title>" +
-    escapeHtml(title) +
-    "</title>" +
-    '<meta name="description" content="' +
-    escapeHtml(page.description) +
-    '">' +
-    '<link rel="canonical" href="' +
-    escapeHtml(canonical) +
-    '">' +
+    head.html +
     '<link rel="alternate" type="application/rss+xml" title="' +
     escapeHtml(site.title) +
     '" href="/feed.xml">' +
-    '<meta property="og:site_name" content="' +
-    escapeHtml(site.title) +
-    '">' +
-    '<meta property="og:title" content="' +
-    escapeHtml(title) +
-    '">' +
-    '<meta property="og:description" content="' +
-    escapeHtml(page.description) +
-    '">' +
-    '<meta property="og:url" content="' +
-    escapeHtml(canonical) +
-    '">' +
-    '<meta property="og:type" content="website">' +
-    (page.thumbnail
-      ? '<meta property="og:image" content="' +
-        escapeHtml(new URL(page.thumbnail.src, site.url).href) +
-        '">' +
-        '<meta name="twitter:card" content="summary_large_image">'
-      : '<meta name="twitter:card" content="summary">') +
-    '<meta name="twitter:title" content="' +
-    escapeHtml(title) +
-    '">' +
-    '<meta name="twitter:description" content="' +
-    escapeHtml(page.description) +
-    '">' +
-    robots +
-    jsonLd +
     rendered.head +
     (body?.metadata?.headHtml ?? "") +
     assets.headHtml +
@@ -292,7 +267,7 @@ async function renderPage(
     html,
     title: page.title,
     description: page.description,
-    loc: canonical,
+    loc,
     dependencies: body?.dependencies ?? [],
     ...(page.kind === "404"
       ? { outputPath: "404.html", status: 404, unlisted: true }
