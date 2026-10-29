@@ -24,9 +24,12 @@ import { tagRoutePath } from "./src/utils/search-path";
 export default defineConfig(async ({ command, mode }) => {
   const root = import.meta.dirname;
   let searchOutputDirectory: string | undefined;
+  // Ox Content writes the search index itself, and a build already leaves drafts
+  // out of it. The dev server indexes drafts, so serve the filtered index there to
+  // keep search results pointing at pages the route list publishes.
   const searchOutputs = new Map([
-    ["/search-index.json", loadSearchIndex],
-    ["/search-pages.json", loadSearchPages],
+    ["/search-index.json", { load: loadSearchIndex, build: false }],
+    ["/search-pages.json", { load: loadSearchPages, build: true }],
   ]);
   const registry = createSvelteHtmlHostIslandRegistry({
     documents: async () =>
@@ -77,9 +80,12 @@ export default defineConfig(async ({ command, mode }) => {
     oxContent: {
       ...embedOptions(root),
       srcDir: contentDirectory,
+      // The search index must cover the same files as the routes, which only read these two.
+      extensions: [".md", ".mdx"],
       docs: false,
       highlight: true,
       mdx: true,
+      publishState: true,
       search: mode === "test" ? false : { limit: 8, hotkey: "" },
       feeds: { formats: ["rss"], title: site.title, language: "ja" },
       siteMaps: { llms: false },
@@ -119,20 +125,22 @@ export default defineConfig(async ({ command, mode }) => {
           if (command === "build" && mode !== "test")
             searchOutputDirectory = path.resolve(root, config.build.outDir);
         },
-        // Ox Content scans srcDir independently of host routes. Replace its index
-        // after its writer finishes, using the same publication rules as routes.
+        // Ox Content scans srcDir independently of host routes, so the extra
+        // search metadata it does not know about is written here.
         closeBundle: {
           order: "post",
           sequential: true,
           async handler() {
             if (!searchOutputDirectory) return;
             await mkdir(searchOutputDirectory, { recursive: true });
-            for (const [url, load] of searchOutputs)
+            for (const [url, output] of searchOutputs) {
+              if (!output.build) continue;
               await writeFile(
                 path.join(searchOutputDirectory, url.slice(1)),
-                await load(root),
+                await output.load(root),
                 "utf8",
               );
+            }
           },
         },
         configurePreviewServer(server: PreviewServer) {
@@ -234,10 +242,10 @@ export default defineConfig(async ({ command, mode }) => {
             }
           });
           server.middlewares.use(async (request, response, next) => {
-            const load = searchOutputs.get(request.url?.split("?")[0] ?? "");
-            if (!load) return next();
+            const searchOutput = searchOutputs.get(request.url?.split("?")[0] ?? "");
+            if (!searchOutput) return next();
             try {
-              const output = await load(root);
+              const output = await searchOutput.load(root);
               response.setHeader("Content-Type", "application/json; charset=utf-8");
               response.end(output);
             } catch (error) {

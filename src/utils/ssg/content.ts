@@ -186,10 +186,25 @@ function readIcon(value: unknown, file: string): PostIcon {
   throw new Error(`${file}: icon には ${postIcons.join("・")} のいずれかを指定してください`);
 }
 
-function readIsPublished(value: unknown, file: string): boolean {
-  if (value === undefined) return true;
+/**
+ * `draft` is the publish field Ox Content itself honours, so the native search
+ * index, sitemap, and page output all agree with the route list below.
+ */
+/** Ox Content reads these as publish state too, which would hide a page the routes still publish. */
+const otherPublishFields = ["unlisted", "scheduled", "date", "expiry"];
+
+function assertPublishFields(frontmatter: Record<string, unknown>, file: string): void {
+  const field = otherPublishFields.find((name) => frontmatter[name] !== undefined);
+  if (field)
+    throw new Error(
+      `${file}: ${field} はOx Contentが公開状態として読むため、このサイトでは使えません。公開状態は draft で指定してください`,
+    );
+}
+
+function readDraft(value: unknown, file: string): boolean {
+  if (value === undefined) return false;
   if (typeof value === "boolean") return value;
-  throw new Error(`${file}: isPublished には true か false を指定してください`);
+  throw new Error(`${file}: draft には true か false を指定してください`);
 }
 
 async function readImage(
@@ -388,13 +403,19 @@ async function readDocs(root: string): Promise<DocPage[]> {
   const pages: DocPage[] = [];
   for (const entry of readManifest(contentRoot)) {
     const relativePath = entry.source;
-    if (relativePath.split("/").some((part) => part.startsWith("_"))) continue;
     const documentPath = path.join(contentRoot, relativePath);
+    const file = path.relative(root, documentPath).split(path.sep).join("/");
+    // Ox Content indexes every file under the posts directory, so a file without a
+    // route would still reach search results. Reject it instead of skipping it.
+    if (relativePath.split("/").some((part) => part.startsWith("_")))
+      throw new Error(
+        `${file}: _ で始まるファイルは記事にできません。記事以外のファイルは ${contentDirectory} の外に置いてください`,
+      );
     const source = await readFile(documentPath, "utf8");
     const frontmatter = entry.frontmatter;
-    const file = path.relative(root, documentPath).split(path.sep).join("/");
     assertFrontmatterReadable(source, frontmatter, file);
-    if (!readIsPublished(frontmatter.isPublished, file)) continue;
+    assertPublishFields(frontmatter, file);
+    if (readDraft(frontmatter.draft, file)) continue;
     const title =
       (typeof frontmatter.title === "string" ? frontmatter.title.trim() : "") ||
       fallbackTitle(source, relativePath);
