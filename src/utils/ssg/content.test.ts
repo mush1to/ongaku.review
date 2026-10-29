@@ -53,6 +53,15 @@ describe("loadDocs", () => {
     ]);
   });
 
+  it("拡張子の大文字・小文字を問わず記事として読み込む", async () => {
+    const root = await createRoot({
+      "UPPER.MD": post("title: 大文字"),
+      "mixed.MdX": post("title: 混在"),
+    });
+
+    expect((await loadDocs(root)).map((doc) => doc.path)).toEqual(["/posts/mixed", "/posts/UPPER"]);
+  });
+
   it.each(['"false"', "0", "null", "[]", "{}"])(
     "真偽値でないisPublished: %sを拒否する",
     async (value) => {

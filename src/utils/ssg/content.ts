@@ -69,13 +69,35 @@ interface ManifestEntry {
   frontmatter: Record<string, unknown>;
 }
 
+/** Every spelling of an extension, because the native matcher compares it literally. */
+function caseVariants(extension: string): string[] {
+  return [...extension].reduce<string[]>(
+    (variants, character) => {
+      const lower = character.toLowerCase();
+      const upper = character.toUpperCase();
+      return lower === upper
+        ? variants.map((value) => value + lower)
+        : variants.flatMap((value) => [value + lower, value + upper]);
+    },
+    [""],
+  );
+}
+
+const markdownExtensions = [".md", ".mdx"].flatMap(caseVariants);
+
 /** One native pass over the content directory: file discovery, frontmatter, and titles. */
 function readManifest(contentRoot: string): ManifestEntry[] {
   const json = buildCollectionManifest({
     srcDir: contentRoot,
-    extensions: [".md", ".mdx"],
+    extensions: markdownExtensions,
     frontmatter: true,
-    collections: [{ name: collectionName, source: ["**/*.md", "**/*.mdx"], include: [] }],
+    collections: [
+      {
+        name: collectionName,
+        source: markdownExtensions.map((extension) => "**/*" + extension),
+        include: [],
+      },
+    ],
   });
   const manifest = JSON.parse(json) as { collections: Record<string, ManifestEntry[]> };
   return manifest.collections[collectionName] ?? [];
