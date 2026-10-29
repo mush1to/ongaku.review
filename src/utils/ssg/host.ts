@@ -223,6 +223,8 @@ async function renderPage(
             inLanguage: "ja",
           };
   const head = renderHead({
+    // Report an unsafe canonical or OGP image instead of dropping it silently.
+    validation: "strict",
     site: { name: site.name, url: site.url, locale: "ja" },
     title,
     titleSuffix: false,
