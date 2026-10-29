@@ -1,6 +1,6 @@
 # 記事の書き方
 
-記事は`src/content/posts/`にMarkdown／MDXで追加する。`src/content/posts/`からの相対パスがURLになり、`abbey-road.md`は`/posts/abbey-road`で公開する。
+記事は`src/content/posts/`にMarkdown／MDXで追加する。`src/content/posts/`からの相対パスがURLになり、`abbey-road.md`は`/posts/abbey-road`で公開する。このディレクトリにあるMarkdown／MDXはすべて記事として扱うため、記事以外のMarkdown／MDXファイルは置かない。Markdown／MDXのファイル名または親ディレクトリ名が`_`で始まるとビルドが失敗する。
 
 ## フロントマター
 
@@ -26,7 +26,7 @@ author: mush1to
 | `created` | 作成日を`YYYY-MM-DD`形式で書く。トップページの「作成日時」に表示し、新しい順に並べる。省略した記事は一覧の最後に並ぶ |
 | `updated` | 更新日を`YYYY-MM-DD`形式で書く。記事ページの「更新日時」に表示する。省略した場合は`created`と同じ日時になる |
 | `icon` | 記事一覧と検索結果に表示するアイコン。`document`（文書）・`music`（音符）・`cd`（CD）から選ぶ。省略した場合は`document` |
-| `isPublished` | 真偽値。`false`にすると記事を公開しない。記事ページ・記事一覧・RSSフィード・検索のすべてから除外する。省略した場合は`true` |
+| `draft` | 真偽値。`true`にすると記事を公開しない。記事ページ・記事一覧・RSSフィード・検索のすべてから除外する。省略した場合は`false` |
 | `thumbnail` | 見出し画像。`img/`内のファイルを記事ファイルからの相対パスで書く。形式はjpg・jpeg・png・webpで、推奨サイズは1200×630。記事の先頭に表示し、OGP画像とXの大きな画像付きカードにも使う。ファイルがない場合や`src/content`の外を指す場合はビルドが失敗する |
 | `tags` | タグを文字列の配列で書く。先頭の`#`は取り除き、重複はまとめる。記事の末尾にタグページへのリンクとして表示する |
 | `author` | 著者のユーザーID。[`src/content/users.yaml`](../src/content/users.yaml)に登録したIDを書く。省略した場合は`src/config/site.ts`の`site.author`を使う。登録していないIDを書くとビルドが失敗する。登録方法は[ユーザー](users.md)を参照する |

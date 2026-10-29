@@ -40,17 +40,25 @@ afterEach(async () => {
 });
 
 describe("loadDocs", () => {
-  it("公開状態を省略した記事とtrueの記事だけを読み込む", async () => {
+  it("draftを省略した記事とdraftがfalseの記事だけを読み込む", async () => {
     const root = await createRoot({
       "default.md": post("title: 省略"),
-      "published.md": post("title: 公開\nisPublished: true"),
-      "hidden.mdx": post("title: 非公開\nisPublished: false"),
+      "published.md": post("title: 公開\ndraft: false"),
+      "hidden.mdx": post("title: 非公開\ndraft: true"),
     });
 
     expect((await loadDocs(root)).map((doc) => doc.path)).toEqual([
       "/posts/default",
       "/posts/published",
     ]);
+  });
+
+  it("_ で始まるファイルは記事にせず、ビルドを止める", async () => {
+    const root = await createRoot({ "_partial.md": post("title: 部品") });
+
+    await expect(loadDocs(root)).rejects.toThrow(
+      "src/content/posts/_partial.md: _ で始まるファイルは記事にできません。記事以外のファイルは src/content/posts の外に置いてください",
+    );
   });
 
   it("拡張子の大文字・小文字を問わず記事として読み込む", async () => {
@@ -63,12 +71,12 @@ describe("loadDocs", () => {
   });
 
   it.each(['"false"', "0", "null", "[]", "{}"])(
-    "真偽値でないisPublished: %sを拒否する",
+    "真偽値でないdraft: %sを拒否する",
     async (value) => {
-      const root = await createRoot({ "invalid.md": post(`isPublished: ${value}`) });
+      const root = await createRoot({ "invalid.md": post(`draft: ${value}`) });
 
       await expect(loadDocs(root)).rejects.toThrow(
-        "src/content/posts/invalid.md: isPublished には true か false を指定してください",
+        "src/content/posts/invalid.md: draft には true か false を指定してください",
       );
     },
   );
@@ -88,6 +96,17 @@ describe("loadDocs", () => {
 
     expect((await loadDocs(root))[0]?.title).toBe("見出し");
   });
+
+  it.each(["unlisted: true", "scheduled: 2099-01-01", "date: 2099-01-01", "expiry: 2000-01-01"])(
+    "draft以外の公開状態フィールド %s を拒否する",
+    async (field) => {
+      const root = await createRoot({ "other.md": post(`title: 公開状態\n${field}`) });
+
+      await expect(loadDocs(root)).rejects.toThrow(
+        `${field.split(":")[0]} はOx Contentが公開状態として読むため、このサイトでは使えません`,
+      );
+    },
+  );
 
   it("createdとupdatedを読み取る", async () => {
     const root = await createRoot({
@@ -756,15 +775,14 @@ describe("loadSearchIndex", () => {
   it("非公開記事を本文・検索語を含めてインデックスから除外する", async () => {
     const root = await createRoot({
       "published.md": post("title: PublicFixture"),
-      "hidden.mdx": post("title: SecretFixture\nisPublished: false") + "SecretBodyToken",
-      "_partial.md": post("title: PartialFixture"),
+      "hidden.mdx": post("title: SecretFixture\ndraft: true") + "SecretBodyToken",
     });
     await writeFile(path.join(root, "src/content/about.mdx"), post("title: AboutFixture"));
 
     const index = await loadSearchIndex(root);
     expect(JSON.parse(index).documents.map((doc: { id: string }) => doc.id)).toEqual(["published"]);
     expect(index).toContain("PublicFixture");
-    expect(index.toLowerCase()).not.toMatch(/secret|partial|aboutfixture/);
+    expect(index.toLowerCase()).not.toMatch(/secret|aboutfixture/);
   });
 });
 
@@ -773,7 +791,7 @@ describe("loadSearchPages", () => {
     const root = await createRoot({
       "old.md": post("title: 古い記事\ncreated: 2026-10-01\ntags:\n  - ロック"),
       "new.md": post("title: 新しい記事\ncreated: 2026-10-20\nicon: cd"),
-      "hidden.md": post("title: 非公開\nisPublished: false"),
+      "hidden.md": post("title: 非公開\ndraft: true"),
     });
 
     const pages = JSON.parse(await loadSearchPages(root));

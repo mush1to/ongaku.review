@@ -110,9 +110,9 @@ describe("Vite search writer lifecycle", () => {
     try {
       await invokeConfigResolved(customSearch, "build", outputRoot);
       await invokeCloseBundle(customSearch);
-      const searchIndex = await readFile(path.join(outputRoot, "search-index.json"), "utf8");
-      expect(searchIndex).toContain("abbey-road");
-      expect(searchIndex.toLowerCase()).not.toContain("unpublished-test");
+      await expect(
+        readFile(path.join(outputRoot, "search-index.json"), "utf8"),
+      ).rejects.toMatchObject({ code: "ENOENT" });
       const searchPages = await readFile(path.join(outputRoot, "search-pages.json"), "utf8");
       expect(JSON.parse(searchPages)["/abbey-road"]).toMatchObject({
         path: "/posts/abbey-road",
