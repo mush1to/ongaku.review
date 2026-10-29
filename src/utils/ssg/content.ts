@@ -64,8 +64,6 @@ const collectionName = "posts";
 interface ManifestEntry {
   /** Source path relative to the collection root, with slash separators. */
   source: string;
-  /** Frontmatter title, else the first H1 heading, else the formatted file name. */
-  title: string;
   frontmatter: Record<string, unknown>;
 }
 
@@ -101,6 +99,27 @@ function readManifest(contentRoot: string): ManifestEntry[] {
   });
   const manifest = JSON.parse(json) as { collections: Record<string, ManifestEntry[]> };
   return manifest.collections[collectionName] ?? [];
+}
+
+/** `hello-world.md` becomes `Hello World`. */
+function fileNameTitle(relativePath: string): string {
+  return path
+    .basename(relativePath)
+    .replace(/\.mdx?$/i, "")
+    .split(/[-_]+/)
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+}
+
+/**
+ * The manifest title falls back to the first heading at any depth, but the docs
+ * promise the first H1 and the file name after that, so the fallback reads the
+ * body without its frontmatter instead.
+ */
+function fallbackTitle(source: string, relativePath: string): string {
+  const { content } = prepareSource(source);
+  return /^#\s+(.+)$/m.exec(content)?.[1].trim() || fileNameTitle(relativePath);
 }
 
 function contentPath(relativePath: string): string {
@@ -354,9 +373,8 @@ async function readDocs(root: string): Promise<DocPage[]> {
     const file = path.relative(root, documentPath).split(path.sep).join("/");
     if (!readIsPublished(frontmatter.isPublished, file)) continue;
     const title =
-      typeof frontmatter.title === "string" && frontmatter.title.trim()
-        ? frontmatter.title.trim()
-        : entry.title;
+      (typeof frontmatter.title === "string" ? frontmatter.title.trim() : "") ||
+      fallbackTitle(source, relativePath);
     if ([...title].length > titleLimit)
       throw new Error(`${file}: title は${titleLimit}文字以内で指定してください`);
     const description = articleDescription(source);

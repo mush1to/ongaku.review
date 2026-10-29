@@ -142,6 +142,36 @@ created: 2026-10-01
 
     expect((await loadDocs(root))[0]?.title).toBe("Hello World");
   });
+
+  it("H2見出しで始まる記事のtitleにH2見出しを使わない", async () => {
+    const root = await createRoot({
+      "h2-first.md": "---\ncreated: 2026-10-01\n---\n\n## 小見出し\n\n本文です。\n",
+    });
+
+    expect((await loadDocs(root))[0]?.title).toBe("H2 First");
+  });
+
+  it("H2見出しのあとにある最初のH1見出しをtitleにする", async () => {
+    const root = await createRoot({
+      "later.md": "---\ncreated: 2026-10-01\n---\n\n## 小見出し\n\n# 記事のH1\n",
+    });
+
+    expect((await loadDocs(root))[0]?.title).toBe("記事のH1");
+  });
+
+  it("空のtitleはH1見出しにフォールバックする", async () => {
+    const root = await createRoot({ "empty.md": post('title: ""') });
+
+    expect((await loadDocs(root))[0]?.title).toBe("見出し");
+  });
+
+  it("フロントマターのYAMLコメントをtitleにしない", async () => {
+    const root = await createRoot({
+      "comment.md": "---\n# editorial note\ncreated: 2026-10-01\n---\n\n本文です。\n",
+    });
+
+    expect((await loadDocs(root))[0]?.title).toBe("Comment");
+  });
 });
 
 describe("description", () => {
