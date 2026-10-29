@@ -154,6 +154,74 @@ test.describe("URL", () => {
   });
 });
 
+test.describe("アイコン", () => {
+  const pages = [
+    { name: "トップページ", path: "/" },
+    { name: "記事ページ", path: "/posts/abbey-road" },
+    { name: "タグページ", path: "/tags/ロック" },
+    { name: "Aboutページ", path: "/about" },
+    { name: "404ページ", path: "/does-not-exist" },
+  ];
+
+  for (const { name, path } of pages)
+    test(`${name}からファビコン・アプリアイコン・マニフェストを参照する`, async ({
+      page,
+      request,
+    }) => {
+      await page.goto(path);
+      await expect(page.locator('link[rel="icon"][type="image/png"]')).toHaveAttribute(
+        "href",
+        "/favicon-32.png",
+      );
+      await expect(page.locator('link[rel="icon"][type="image/x-icon"]')).toHaveAttribute(
+        "href",
+        "/favicon.ico",
+      );
+      await expect(page.locator('link[rel="apple-touch-icon"]')).toHaveAttribute(
+        "href",
+        "/apple-touch-icon.png",
+      );
+      await expect(page.locator('link[rel="manifest"]')).toHaveAttribute(
+        "href",
+        "/site.webmanifest",
+      );
+
+      for (const href of ["/favicon-32.png", "/favicon.ico", "/apple-touch-icon.png"])
+        expect((await request.get(href)).status(), href).toBe(200);
+    });
+
+  test("マニフェストをJSONとして配信し、参照するアイコンを返す", async ({ request }) => {
+    const response = await request.get("/site.webmanifest");
+    expect(response.ok()).toBe(true);
+    expect(response.headers()["content-type"]).toContain("application/manifest+json");
+    const manifest = (await response.json()) as {
+      name: string;
+      short_name: string;
+      start_url: string;
+      display: string;
+      background_color: string;
+      theme_color: string;
+      icons: { src: string; sizes: string; purpose?: string }[];
+    };
+    expect(manifest).toMatchObject({
+      name: "ongaku.review",
+      short_name: "ongaku.review",
+      start_url: "/",
+      display: "standalone",
+      background_color: "#ffffff",
+      theme_color: "#0b55e0",
+    });
+    expect(manifest.icons.map((icon) => [icon.src, icon.sizes, icon.purpose])).toEqual([
+      ["/favicon-32.png", "32x32", undefined],
+      ["/icon-512-any.png", "512x512", undefined],
+      ["/icon-192.png", "192x192", "maskable"],
+      ["/icon-512.png", "512x512", "maskable"],
+    ]);
+    for (const icon of manifest.icons)
+      expect((await request.get(icon.src)).status(), icon.src).toBe(200);
+  });
+});
+
 test.describe("2ページ目以降", () => {
   test("アドレスバーにページ数を表示しない", async ({ page }) => {
     await page.goto("/page/2");
