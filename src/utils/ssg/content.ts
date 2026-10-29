@@ -122,6 +122,28 @@ function fallbackTitle(source: string, relativePath: string): string {
   return /^#\s+(.+)$/m.exec(content)?.[1].trim() || fileNameTitle(relativePath);
 }
 
+const frontmatterBlock = /^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/;
+
+/**
+ * The native parser drops a frontmatter block it cannot read and reports an
+ * empty map. Publication defaults would then publish the article, so a block
+ * that came back empty is read again here to fail the build instead.
+ */
+function assertFrontmatterReadable(
+  source: string,
+  frontmatter: Record<string, unknown>,
+  file: string,
+): void {
+  if (Object.keys(frontmatter).length) return;
+  const block = frontmatterBlock.exec(source)?.[1];
+  if (!block?.trim()) return;
+  try {
+    parse(block);
+  } catch (error) {
+    throw new Error(`${file}: フロントマターを読み込めません: ${(error as Error).message}`);
+  }
+}
+
 function contentPath(relativePath: string): string {
   return (
     "/" +
@@ -371,6 +393,7 @@ async function readDocs(root: string): Promise<DocPage[]> {
     const source = await readFile(documentPath, "utf8");
     const frontmatter = entry.frontmatter;
     const file = path.relative(root, documentPath).split(path.sep).join("/");
+    assertFrontmatterReadable(source, frontmatter, file);
     if (!readIsPublished(frontmatter.isPublished, file)) continue;
     const title =
       (typeof frontmatter.title === "string" ? frontmatter.title.trim() : "") ||
@@ -407,6 +430,7 @@ export async function loadAboutPage(root: string): Promise<DocPage> {
   const documentPath = path.join(root, aboutDocument);
   const source = await readFile(documentPath, "utf8");
   const { frontmatter } = prepareSource(source);
+  assertFrontmatterReadable(source, frontmatter, aboutDocument);
   return {
     path: "/about",
     indexPath: "/about",

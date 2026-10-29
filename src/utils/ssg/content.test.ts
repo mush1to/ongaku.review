@@ -73,6 +73,22 @@ describe("loadDocs", () => {
     },
   );
 
+  it("読み込めないフロントマターの記事は公開せずにビルドを失敗させる", async () => {
+    const root = await createRoot({
+      "broken.md": "---\ntitle: 静かな怒り: OK Computer\nisPublished: false\n---\n\n本文です。\n",
+    });
+
+    await expect(loadDocs(root)).rejects.toThrow(
+      "src/content/posts/broken.md: フロントマターを読み込めません",
+    );
+  });
+
+  it("コメントだけのフロントマターは空として扱う", async () => {
+    const root = await createRoot({ "comment.md": "---\n# メモ\n---\n\n# 見出し\n" });
+
+    expect((await loadDocs(root))[0]?.title).toBe("見出し");
+  });
+
   it("createdとupdatedを読み取る", async () => {
     const root = await createRoot({
       "first.md": post("title: 最初の記事\ncreated: 2026-10-01\nupdated: 2026-10-20"),
@@ -721,6 +737,18 @@ describe("loadAboutPage", () => {
       description: "固定ページ",
     });
     expect((await loadDocs(root)).map((doc) => doc.path)).toEqual(["/posts/about"]);
+  });
+
+  it("読み込めないフロントマターのAboutはビルドを失敗させる", async () => {
+    const root = await createRoot({});
+    await writeFile(
+      path.join(root, "src/content/about.mdx"),
+      "---\ntitle: 静かな怒り: About\n---\n\n本文です。\n",
+    );
+
+    await expect(loadAboutPage(root)).rejects.toThrow(
+      "src/content/about.mdx: フロントマターを読み込めません",
+    );
   });
 });
 
