@@ -1,6 +1,5 @@
 ---
 title: Patti Smith「Horses」の始まり
-description: 1975年の「Horses」を、語りとバンドの音が重なる様子から振り返ります。
 created: 2026-10-14
 icon: music
 ---

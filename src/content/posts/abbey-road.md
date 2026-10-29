@@ -1,6 +1,5 @@
 ---
 title: 「アビイ・ロード」を2026年に聴く
-description: The Beatles「Abbey Road」を久しぶりに通して聴き、曲順と録音の面白さを確かめた記録です。
 created: 2026-10-25
 icon: cd
 tags:

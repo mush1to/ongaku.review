@@ -276,6 +276,21 @@ test.describe("記事ページ", () => {
     await home.click();
     await expect(page).toHaveURL(/\/$/);
   });
+
+  test("説明を本文の先頭の段落から作り、メタ情報に出力する", async ({ page }) => {
+    await page.goto("/posts/pagination-check-01");
+    const description =
+      "記事一覧のページ送りを確認するために追加した短い記事です。一覧の件数が12件を超えると、ページ番号のリンクが表示されます。";
+    await expect(page.locator('meta[name="description"]')).toHaveAttribute("content", description);
+    await expect(page.locator('meta[property="og:description"]')).toHaveAttribute(
+      "content",
+      description,
+    );
+    await expect(page.locator('meta[name="twitter:description"]')).toHaveAttribute(
+      "content",
+      description,
+    );
+  });
 });
 
 test.describe("タグページ", () => {
@@ -348,7 +363,7 @@ test.describe("記事ページの構成", () => {
       expect(tops[index], selectors[index]).toBeGreaterThan(tops[index - 1]!);
   }
 
-  test("見出し画像・タイトル・著者欄・本文・タグ・シェア・前後の記事の順に並べる", async ({
+  test("見出し画像・タイトル・著者欄・本文・タグ・シェア・執筆者・前後の記事の順に並べる", async ({
     page,
   }) => {
     await page.goto("/posts/pagination-check-01");
@@ -358,6 +373,7 @@ test.describe("記事ページの構成", () => {
       ".document-byline",
       ".prose",
       ".share-button",
+      ".author-card",
       ".adjacent-posts",
     ]);
 
@@ -368,22 +384,81 @@ test.describe("記事ページの構成", () => {
       ".prose",
       ".document-tags",
       ".share-button",
+      ".author-card",
       ".adjacent-posts",
     ]);
   });
 
-  test("著者欄に記事のアイコン・著者名・日付を表示する", async ({ page }) => {
+  test("著者欄にユーザーのアイコン・名前・日付を表示する", async ({ page }) => {
     await page.goto("/posts/abbey-road");
     const byline = page.locator(".document-byline");
-    await expect(byline.locator("img")).toHaveAttribute("src", "/icons/silk/cd.svg");
-    await expect(byline.locator(".document-author")).toHaveText("mush1to");
+    const icon = byline.locator("img");
+    await expect(icon).toHaveAttribute("src", /^\/assets\/content\/[0-9a-f]+\.webp$/);
+    await expect
+      .poll(() => icon.evaluate((element: HTMLImageElement) => element.naturalWidth))
+      .toBe(400);
+    await expect(byline.locator(".document-author")).toHaveText("むしにゃんこ");
     await expect(byline.locator(".document-date")).toHaveCount(2);
+  });
+
+  test("記事の最後に執筆者のアイコン・名前・説明・リンクを表示する", async ({ page }) => {
+    await page.goto("/posts/abbey-road");
+    const card = page.getByRole("region", { name: "この記事を書いた人" });
+    await expect(card.locator(".user-icon")).toHaveAttribute(
+      "src",
+      (await page.locator(".document-byline img").getAttribute("src"))!,
+    );
+    await expect(card.locator(".author-card-name")).toHaveText("むしにゃんこ");
+    await expect(card.locator(".author-card-description")).toHaveText("趣味で固定給貰ってます。");
+
+    const links = card.getByRole("list", { name: "むしにゃんこのリンク" }).getByRole("link");
+    await expect(links).toHaveCount(2);
+    const x = links.nth(0);
+    await expect(x).toHaveAccessibleName("X（@mush1to）");
+    await expect(x).toHaveAttribute("href", "https://x.com/mush1to");
+    await expect(x.locator("svg")).toHaveCount(1);
+    const website = links.nth(1);
+    await expect(website).toHaveAccessibleName("links.6410.org");
+    await expect(website).toHaveAttribute("href", "https://links.6410.org/");
+    await expect(website.locator("img")).toHaveAttribute("src", "/icons/silk/world.svg");
+    for (const link of [x, website]) {
+      await expect(link).toHaveAttribute("target", "_blank");
+      await expect(link).toHaveAttribute("rel", "noopener noreferrer");
+      const box = await link.boundingBox();
+      expect(box?.width).toBeGreaterThanOrEqual(44);
+      expect(box?.height).toBeGreaterThanOrEqual(44);
+    }
+  });
+
+  test("執筆者の説明は狭い画面でも句の途中で折らず、改行した位置で改行する", async ({ page }) => {
+    await page.setViewportSize({ width: 375, height: 800 });
+    await page.goto("/posts/abbey-road");
+    const description = page.locator(".author-card-description");
+    await expect(description).toHaveCSS("white-space", "pre-line");
+    await expect(description).toHaveCSS("word-break", "normal");
+
+    // Measure the first line through the range up to the point where the text wraps.
+    const firstLine = await description.evaluate((element) => {
+      const text = element.firstChild;
+      if (!text || text.nodeType !== Node.TEXT_NODE) throw new Error("説明が1つのテキストではない");
+      const content = text.textContent ?? "";
+      const range = document.createRange();
+      let end = 0;
+      for (let index = 1; index <= content.length; index++) {
+        range.setStart(text, 0);
+        range.setEnd(text, index);
+        if (range.getClientRects().length > 1) break;
+        end = index;
+      }
+      return content.slice(0, end);
+    });
+    expect(firstLine).toContain("固定給");
   });
 
   test("見出し画像を1200:630で表示し、OGPとXのカードに使う", async ({ page }) => {
     await page.goto("/posts/pagination-check-01");
     const image = page.locator(".document-thumbnail img");
-    await expect(image).toHaveAttribute("alt", "青一色の確認用画像");
+    await expect(image).toHaveAttribute("alt", "");
     await expect
       .poll(() => image.evaluate((element: HTMLImageElement) => element.naturalWidth))
       .toBe(1200);
@@ -396,10 +471,6 @@ test.describe("記事ページの構成", () => {
     const ogImage = await page.locator('meta[property="og:image"]').getAttribute("content");
     expect(ogImage).toMatch(/^https:\/\/ongaku\.review\/assets\/content\/[0-9a-f]+\.png$/);
     expect(new URL(ogImage!).pathname).toBe(await image.getAttribute("src"));
-    await expect(page.locator('meta[property="og:image:alt"]')).toHaveAttribute(
-      "content",
-      "青一色の確認用画像",
-    );
     await expect(page.locator('meta[name="twitter:card"]')).toHaveAttribute(
       "content",
       "summary_large_image",
@@ -514,6 +585,7 @@ test.describe("Aboutページ", () => {
       ".document-byline",
       ".document-tags",
       ".share-button",
+      ".author-card",
       ".adjacent-posts",
     ])
       await expect(page.locator(selector)).toHaveCount(0);
@@ -798,6 +870,7 @@ test.describe("フィード", () => {
     expect(response.ok()).toBe(true);
     const feed = await response.text();
     expect(feed).toContain("<link>https://ongaku.review/posts/abbey-road</link>");
+    expect(feed).toContain("記事一覧のページ送りを確認するために追加した短い記事です。");
     expect(feed).not.toContain("https://ongaku.review/about");
   });
 });

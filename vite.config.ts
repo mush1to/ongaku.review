@@ -13,6 +13,8 @@ import {
   loadDocs,
   loadSearchIndex,
   loadSearchPages,
+  usersDirectory,
+  usersDocument,
 } from "./src/utils/ssg/content";
 import { site } from "./src/config/site";
 import { collectEmbedAssets, embedOptions } from "./src/utils/ssg/embeds";
@@ -44,6 +46,8 @@ export default defineConfig(async ({ command, mode }) => {
       watch: [
         { path: contentDirectory, kind: "directory" },
         { path: aboutDocument, kind: "file" },
+        { path: usersDocument, kind: "file" },
+        { path: usersDirectory, kind: "directory" },
       ],
       manifest: async (ctx) => {
         const docs = [...(await loadDocs(ctx.root)), await loadAboutPage(ctx.root)];
@@ -56,10 +60,10 @@ export default defineConfig(async ({ command, mode }) => {
             pagePath: doc.path,
           })),
           extraAssets: [
-            ...docs.flatMap(({ thumbnail }) =>
-              thumbnail
-                ? [{ sourcePath: thumbnail.sourcePath, publicPath: thumbnail.publicPath }]
-                : [],
+            ...docs.flatMap(({ thumbnail, author }) =>
+              [thumbnail, author?.icon].flatMap((image) =>
+                image ? [{ sourcePath: image.sourcePath, publicPath: image.publicPath }] : [],
+              ),
             ),
             ...embedAssets,
           ],
@@ -89,6 +93,8 @@ export default defineConfig(async ({ command, mode }) => {
       routeDependencies: [
         { path: contentDirectory, kind: "directory" },
         { path: aboutDocument, kind: "file" },
+        { path: usersDocument, kind: "file" },
+        { path: usersDirectory, kind: "directory" },
       ],
     },
     build: { enabled: mode !== "test", transformHtml: false },

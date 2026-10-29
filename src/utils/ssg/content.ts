@@ -4,20 +4,36 @@ import { parse } from "yaml";
 import { buildSearchIndex } from "@ox-content/vite-plugin";
 import { defaultPostIcon, isPostIcon, postIcons, type PostIcon } from "../../config/icons";
 import { site } from "../../config/site";
+import type { AuthorLink } from "../../pages/page-data";
 import { normalizeSearchPath, normalizeTag, tagRoutePath } from "../search-path";
+import { articleDescription, descriptionLimit } from "./description";
 
 export const contentDirectory = "src/content/posts";
 export const aboutDocument = "src/content/about.mdx";
+export const usersDocument = "src/content/users.yaml";
+export const usersDirectory = "src/content/users";
 const assetRoot = "src/content";
-/** Formats X accepts for summary_large_image cards. */
-const thumbnailExtensions = [".jpg", ".jpeg", ".png", ".webp"];
+/** Formats X accepts for summary_large_image cards. User icons accept the same formats. */
+const imageExtensions = [".jpg", ".jpeg", ".png", ".webp"];
+const userIdPattern = /^[A-Za-z0-9_-]+$/;
+const xUsernamePattern = /^[A-Za-z0-9_]{1,15}$/;
+/** Longest article title, name, and description, counted in code points. */
+const titleLimit = 100;
+const nameLimit = 20;
 
-export interface DocThumbnail {
+export interface ContentImage {
   /** Absolute path of the image file. */
   sourcePath: string;
-  /** Public alias resolved against the page URL, as body images are. */
+  /** Public alias resolved against the referring file's URL, as body images are. */
   publicPath: string;
-  alt: string;
+}
+
+export interface User {
+  id: string;
+  name: string;
+  description: string;
+  icon?: ContentImage;
+  links: AuthorLink[];
 }
 
 export interface DocPage {
@@ -31,20 +47,22 @@ export interface DocPage {
   /** YYYY-MM-DD. Defaults to `created`. */
   updated?: string;
   icon: PostIcon;
-  thumbnail?: DocThumbnail;
+  thumbnail?: ContentImage;
   tags: string[];
-  author: string;
+  /** Only posts have an author. */
+  author?: User;
   source: string;
   documentPath: string;
 }
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  !!value && typeof value === "object" && !Array.isArray(value);
 
 function readFrontmatter(source: string): Record<string, unknown> {
   const match = /^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/.exec(source);
   if (!match) return {};
   const data: unknown = parse(match[1]);
-  return data && typeof data === "object" && !Array.isArray(data)
-    ? (data as Record<string, unknown>)
-    : {};
+  return isRecord(data) ? data : {};
 }
 
 function firstHeading(source: string): string | undefined {
@@ -100,46 +118,66 @@ function readIsPublished(value: unknown, file: string): boolean {
   throw new Error(`${file}: isPublished には true か false を指定してください`);
 }
 
-async function readThumbnail(
+async function readImage(
   value: unknown,
-  alt: unknown,
-  context: { root: string; file: string; documentPath: string; pagePath: string },
-): Promise<DocThumbnail | undefined> {
-  const { root, file, documentPath, pagePath } = context;
+  context: {
+    root: string;
+    file: string;
+    field: string;
+    /** How the error message names the file that relative paths start from. */
+    origin: string;
+    /** Path of the file that relative paths start from. */
+    referrer: string;
+    /** Public URL that relative paths resolve against. Ends with a slash. */
+    publicBase: string;
+  },
+): Promise<ContentImage | undefined> {
+  const { root, file, field, origin, referrer, publicBase } = context;
   if (value === undefined || value === null) return undefined;
   if (typeof value !== "string" || !value.trim())
-    throw new Error(`${file}: thumbnail には画像ファイルのパスを文字列で指定してください`);
+    throw new Error(`${file}: ${field} には画像ファイルのパスを文字列で指定してください`);
   const reference = value.trim().replaceAll("\\", "/");
   if (
     reference.startsWith("/") ||
     path.isAbsolute(reference) ||
     /^[a-z][a-z\d+.-]*:/i.test(reference)
   )
-    throw new Error(`${file}: thumbnail は記事ファイルからの相対パスで指定してください`);
-  if (!thumbnailExtensions.includes(path.extname(reference).toLowerCase()))
+    throw new Error(`${file}: ${field} は${origin}からの相対パスで指定してください`);
+  if (!imageExtensions.includes(path.extname(reference).toLowerCase()))
     throw new Error(
-      `${file}: thumbnail には ${thumbnailExtensions.join("・")} のいずれかの画像を指定してください`,
+      `${file}: ${field} には ${imageExtensions.join("・")} のいずれかの画像を指定してください`,
     );
-  const candidate = path.resolve(path.dirname(documentPath), reference);
+  const candidate = path.resolve(path.dirname(referrer), reference);
   const fromAssetRoot = path.relative(path.join(root, assetRoot), candidate);
   if (fromAssetRoot.startsWith("..") || path.isAbsolute(fromAssetRoot))
-    throw new Error(`${file}: thumbnail には ${assetRoot} 内の画像を指定してください`);
+    throw new Error(`${file}: ${field} には ${assetRoot} 内の画像を指定してください`);
   const sourcePath = await realpath(candidate).catch(() => null);
-  if (!sourcePath) throw new Error(`${file}: thumbnail の画像 ${reference} が見つかりません`);
+  if (!sourcePath) throw new Error(`${file}: ${field} の画像 ${reference} が見つかりません`);
   const fromRealAssetRoot = path.relative(await realpath(path.join(root, assetRoot)), sourcePath);
   if (fromRealAssetRoot.startsWith("..") || path.isAbsolute(fromRealAssetRoot))
-    throw new Error(`${file}: thumbnail には ${assetRoot} 内の画像を指定してください`);
+    throw new Error(`${file}: ${field} には ${assetRoot} 内の画像を指定してください`);
   if (!(await stat(sourcePath).catch(() => null))?.isFile())
-    throw new Error(`${file}: thumbnail の画像 ${reference} が見つかりません`);
-  if (alt !== undefined && alt !== null && typeof alt !== "string")
-    throw new Error(`${file}: thumbnailAlt は文字列で指定してください`);
-  const assetBase = pagePath === "/" ? "/" : pagePath + "/";
+    throw new Error(`${file}: ${field} の画像 ${reference} が見つかりません`);
   const encodedReference = reference.split("/").map(encodeURIComponent).join("/");
   return {
     sourcePath,
-    publicPath: new URL(encodedReference, "https://local" + assetBase).pathname,
-    alt: typeof alt === "string" ? alt.trim() : "",
+    publicPath: new URL(encodedReference, "https://local" + publicBase).pathname,
   };
+}
+
+async function readThumbnail(
+  value: unknown,
+  context: { root: string; file: string; documentPath: string; pagePath: string },
+): Promise<ContentImage | undefined> {
+  const { root, file, documentPath, pagePath } = context;
+  return readImage(value, {
+    root,
+    file,
+    field: "thumbnail",
+    origin: "記事ファイル",
+    referrer: documentPath,
+    publicBase: pagePath === "/" ? "/" : pagePath + "/",
+  });
 }
 
 function readTags(value: unknown, file: string): string[] {
@@ -167,10 +205,81 @@ function readTags(value: unknown, file: string): string[] {
   return [...tags.values()];
 }
 
-function readAuthor(value: unknown, file: string): string {
-  if (value === undefined || value === null) return site.author;
-  if (typeof value === "string" && value.trim()) return value.trim();
-  throw new Error(`${file}: author は文字列で指定してください`);
+function readXLink(value: unknown, file: string, id: string): AuthorLink[] {
+  if (value === undefined || value === null) return [];
+  const username = typeof value === "string" ? value.trim().replace(/^[@＠]/, "") : "";
+  if (!xUsernamePattern.test(username))
+    throw new Error(
+      `${file}: ${id} の x.com には X のユーザー名を英数字と _ の15文字以内の文字列で指定してください`,
+    );
+  return [{ kind: "x", url: `https://x.com/${username}`, label: `X（@${username}）` }];
+}
+
+function readWebsiteLinks(value: unknown, file: string, id: string): AuthorLink[] {
+  if (value === undefined || value === null) return [];
+  const error = new Error(
+    `${file}: ${id} の links には http か https の URL を文字列の配列で指定してください`,
+  );
+  if (!Array.isArray(value)) throw error;
+  return value.map((item): AuthorLink => {
+    const url = typeof item === "string" ? URL.parse(item.trim()) : null;
+    if (!url || (url.protocol !== "http:" && url.protocol !== "https:")) throw error;
+    return { kind: "website", url: url.href, label: url.host };
+  });
+}
+
+/** Users that posts name in `author`, keyed by user ID. */
+export async function loadUsers(root: string): Promise<Map<string, User>> {
+  const documentPath = path.join(root, usersDocument);
+  const file = usersDocument;
+  const data: unknown = parse(await readFile(documentPath, "utf8"));
+  if (!isRecord(data)) throw new Error(`${file}: ユーザーIDをキーにしたマップで書いてください`);
+  const users = new Map<string, User>();
+  for (const [id, entry] of Object.entries(data)) {
+    if (!userIdPattern.test(id))
+      throw new Error(`${file}: ユーザーID ${id} には英数字・-・_ だけを使用してください`);
+    if (!isRecord(entry)) throw new Error(`${file}: ${id} の内容はマップで書いてください`);
+    const { name, description } = entry;
+    if (typeof name !== "string" || !name.trim())
+      throw new Error(`${file}: ${id} の name を文字列で指定してください`);
+    if ([...name.trim()].length > nameLimit)
+      throw new Error(`${file}: ${id} の name は${nameLimit}文字以内で指定してください`);
+    if (description !== undefined && description !== null && typeof description !== "string")
+      throw new Error(`${file}: ${id} の description は文字列で指定してください`);
+    if (typeof description === "string" && [...description.trim()].length > descriptionLimit)
+      throw new Error(
+        `${file}: ${id} の description は${descriptionLimit}文字以内で指定してください`,
+      );
+    users.set(id, {
+      id,
+      name: name.trim(),
+      description: typeof description === "string" ? description.trim() : "",
+      icon: await readImage(entry.icon, {
+        root,
+        file,
+        field: `${id} の icon`,
+        origin: "このファイル",
+        referrer: documentPath,
+        publicBase: "/",
+      }),
+      links: [...readXLink(entry["x.com"], file, id), ...readWebsiteLinks(entry.links, file, id)],
+    });
+  }
+  return users;
+}
+
+function readAuthor(value: unknown, file: string, users: ReadonlyMap<string, User>): User {
+  const id =
+    value === undefined || value === null
+      ? site.author
+      : typeof value === "string"
+        ? value.trim()
+        : "";
+  if (!id) throw new Error(`${file}: author はユーザーIDを文字列で指定してください`);
+  const user = users.get(id);
+  if (!user)
+    throw new Error(`${file}: author のユーザーID ${id} は ${usersDocument} に登録されていません`);
+  return user;
 }
 
 /**
@@ -181,6 +290,7 @@ function readAuthor(value: unknown, file: string): string {
 export async function loadDocs(root: string): Promise<DocPage[]> {
   const contentRoot = path.join(root, contentDirectory);
   const entries = await readdir(contentRoot, { recursive: true, withFileTypes: true });
+  const users = await loadUsers(root);
   const pages: DocPage[] = [];
   for (const entry of entries) {
     if (!entry.isFile() || !/\.mdx?$/i.test(entry.name)) continue;
@@ -196,8 +306,9 @@ export async function loadDocs(root: string): Promise<DocPage[]> {
       typeof frontmatter.title === "string" && frontmatter.title.trim()
         ? frontmatter.title.trim()
         : (firstHeading(source) ?? path.basename(relativePath).replace(/\.mdx?$/i, ""));
-    const description =
-      typeof frontmatter.description === "string" ? frontmatter.description.trim() : "";
+    if ([...title].length > titleLimit)
+      throw new Error(`${file}: title は${titleLimit}文字以内で指定してください`);
+    const description = articleDescription(source);
     const created = readDate(frontmatter.created, file, "created");
     const pagePath = routePath(relativePath);
     pages.push({
@@ -208,14 +319,14 @@ export async function loadDocs(root: string): Promise<DocPage[]> {
       created,
       updated: readDate(frontmatter.updated, file, "updated") ?? created,
       icon: readIcon(frontmatter.icon, file),
-      thumbnail: await readThumbnail(frontmatter.thumbnail, frontmatter.thumbnailAlt, {
+      thumbnail: await readThumbnail(frontmatter.thumbnail, {
         root,
         file,
         documentPath,
         pagePath,
       }),
       tags: readTags(frontmatter.tags, file),
-      author: readAuthor(frontmatter.author, file),
+      author: readAuthor(frontmatter.author, file, users),
       source,
       documentPath,
     });
@@ -234,7 +345,6 @@ export async function loadAboutPage(root: string): Promise<DocPage> {
     description: typeof frontmatter.description === "string" ? frontmatter.description.trim() : "",
     icon: defaultPostIcon,
     tags: [],
-    author: site.author,
     source,
     documentPath,
   };

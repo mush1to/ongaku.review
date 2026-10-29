@@ -13,7 +13,7 @@ import {
 import { site } from "../../config/site";
 import type { AdjacentPost, PageData, Pagination } from "../../pages/page-data";
 import { normalizeTag, tagRoutePath } from "../search-path";
-import { listPosts, loadAboutPage, loadDocs, type DocPage } from "./content";
+import { listPosts, loadAboutPage, loadDocs, type ContentImage, type DocPage } from "./content";
 import { renderDocumentMarkdown } from "./embeds";
 
 const components = (root: string) => ({
@@ -116,8 +116,6 @@ const postPage = (posts: readonly DocPage[], index: number): PageData => {
   return {
     ...aboutPage(doc),
     isPost: true,
-    icon: doc.icon,
-    author: doc.author,
     tags: doc.tags,
     adjacent: {
       previous: adjacentPost(posts[index + 1]),
@@ -171,16 +169,23 @@ async function renderPage(
 ) {
   const body = source ? await markdown(ctx, source.source, source.documentPath) : undefined;
   const manifest = await ctx.assets.collectionManifest();
+  const imageSrc = (image: ContentImage) =>
+    manifest?.assets.find((asset) => path.resolve(asset.sourcePath) === image.sourcePath)
+      ?.contentPath ?? image.publicPath;
   const thumbnail = source?.thumbnail;
-  const thumbnailSrc =
-    thumbnail &&
-    (manifest?.assets.find((asset) => path.resolve(asset.sourcePath) === thumbnail.sourcePath)
-      ?.contentPath ??
-      thumbnail.publicPath);
-  const page: PageData =
-    thumbnail && thumbnailSrc && basePage.isPost
-      ? { ...basePage, thumbnail: { src: thumbnailSrc, alt: thumbnail.alt } }
-      : basePage;
+  const author = source?.author;
+  const page: PageData = basePage.isPost
+    ? {
+        ...basePage,
+        thumbnail: thumbnail && { src: imageSrc(thumbnail) },
+        author: author && {
+          name: author.name,
+          description: author.description,
+          icon: author.icon && imageSrc(author.icon),
+          links: author.links,
+        },
+      }
+    : basePage;
   const pageModule = (await ctx.loadModule("/src/pages/Page.svelte")) as {
     default: Component<{ page: PageData }>;
   };
@@ -260,9 +265,6 @@ async function renderPage(
       ? '<meta property="og:image" content="' +
         escapeHtml(new URL(page.thumbnail.src, site.url).href) +
         '">' +
-        (page.thumbnail.alt
-          ? '<meta property="og:image:alt" content="' + escapeHtml(page.thumbnail.alt) + '">'
-          : "") +
         '<meta name="twitter:card" content="summary_large_image">'
       : '<meta name="twitter:card" content="summary">') +
     '<meta name="twitter:title" content="' +

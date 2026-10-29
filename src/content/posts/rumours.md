@@ -1,6 +1,5 @@
 ---
 title: 「Rumours」の合唱
-description: Fleetwood Macの「Rumours」を、声の重なりと演奏の勢いから楽しみます。
 created: 2026-10-17
 icon: music
 ---

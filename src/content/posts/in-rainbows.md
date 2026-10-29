@@ -1,6 +1,5 @@
 ---
 title: 「In Rainbows」の温度
-description: Radioheadが2007年に配信で公開した「In Rainbows」を、音の温度から振り返ります。
 created: 2026-10-18
 icon: cd
 tags:

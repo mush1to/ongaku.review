@@ -14,7 +14,21 @@ export interface PostSummary {
 
 export interface Thumbnail {
   src: string;
-  alt: string;
+}
+
+export interface AuthorLink {
+  kind: "x" | "website";
+  url: string;
+  /** Accessible name of the icon-only link. */
+  label: string;
+}
+
+export interface Author {
+  name: string;
+  description: string;
+  /** Image URL. Undefined when the user has no icon. */
+  icon?: string;
+  links: AuthorLink[];
 }
 
 export interface AdjacentPost {
@@ -40,8 +54,7 @@ export interface PageData {
   created?: string;
   updated?: string;
   isPost?: boolean;
-  icon?: PostIcon;
-  author?: string;
+  author?: Author;
   thumbnail?: Thumbnail;
   tags?: string[];
   /** `previous` is the older post and `next` the newer one. */

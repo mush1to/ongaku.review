@@ -1,6 +1,5 @@
 ---
 title: 「Kind of Blue」の余白
-description: Miles Davisの「Kind of Blue」を、音と音の間隔に注目して聴きます。
 created: 2026-10-23
 icon: cd
 tags:

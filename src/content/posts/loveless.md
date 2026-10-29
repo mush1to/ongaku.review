@@ -1,6 +1,5 @@
 ---
 title: 「Loveless」の音の層
-description: My Bloody Valentineの「Loveless」を、ギターの重なりと耳への当たり方から聴きます。
 created: 2026-10-21
 icon: music
 ---

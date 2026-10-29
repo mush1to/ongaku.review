@@ -1,6 +1,5 @@
 ---
 title: Joni Mitchell「Blue」の距離感
-description: 1971年の「Blue」を、歌詞とギターの距離から読み解くレビューです。
 created: 2026-10-22
 icon: music
 ---

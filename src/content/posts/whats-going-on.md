@@ -1,6 +1,5 @@
 ---
 title: 「What's Going On」の声
-description: Marvin Gayeの「What's Going On」を、重なるコーラスとベースの動きから聴きます。
 created: 2026-10-15
 icon: music
 ---

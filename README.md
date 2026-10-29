@@ -7,6 +7,8 @@ ongaku.reviewは、音楽に関する記事を投稿するサイトである。S
 サイトで公開しないリポジトリのドキュメントは`docs/`に置く。
 
 - [技術スタック](docs/tech-stack.md): 採用している技術の一覧
+- [記事の書き方](docs/posts.md): 記事の置き場所、フロントマター、画像の入れ方
+- [ユーザー](docs/users.md): 記事の著者の登録方法
 
 ## ページ構成
 
@@ -16,45 +18,6 @@ ongaku.reviewは、音楽に関する記事を投稿するサイトである。S
 | `/tags/<タグ名>` | そのタグを持つ記事をトップページと同じ一覧で表示する |
 | `/about` | 固定ページ。[`src/content/about.mdx`](src/content/about.mdx)の内容 |
 | `/posts/<ファイル名>` | 各記事 |
-
-## 記事
-
-記事は`src/content/posts/`にMarkdown／MDXで追加する。`src/content/posts/`からの相対パスがURLになり、`abbey-road.md`は`/posts/abbey-road`で公開する。
-
-フロントマターには次の項目を書く。
-
-```yaml
----
-title: 「アビイ・ロード」を2026年に聴く
-description: The Beatles「Abbey Road」を久しぶりに通して聴き、曲順と録音の面白さを確かめた記録です。
-created: 2026-10-25
-updated: 2026-10-26
-icon: cd
-thumbnail: ./images/abbey-road.jpg
-thumbnailAlt: 「Abbey Road」のジャケット
-tags:
-  - ロック
-  - The Beatles
-author: mush1to
----
-```
-
-| 項目 | 内容 |
-| --- | --- |
-| `title` | 記事名。省略した場合は本文の最初の見出しを使う |
-| `description` | 記事の説明。検索エンジン向けの説明とRSSフィードに使う |
-| `created` | 作成日を`YYYY-MM-DD`形式で書く。トップページの「作成日時」に表示し、新しい順に並べる。省略した記事は一覧の最後に並ぶ |
-| `updated` | 更新日を`YYYY-MM-DD`形式で書く。記事ページの「更新日時」に表示する。省略した場合は`created`と同じ日時になる |
-| `icon` | 記事一覧と検索結果に表示するアイコン。`document`（文書）・`music`（音符）・`cd`（CD）から選ぶ。省略した場合は`document` |
-| `isPublished` | 真偽値。`false`にすると記事を公開しない。記事ページ・記事一覧・RSSフィード・検索のすべてから除外する。省略した場合は`true` |
-| `thumbnail` | 見出し画像。記事ファイルからの相対パスで書く。形式はjpg・jpeg・png・webpで、推奨サイズは1200×630。記事の先頭に表示し、OGP画像とXの大きな画像付きカードにも使う。ファイルがない場合や`src/content`の外を指す場合はビルドが失敗する |
-| `thumbnailAlt` | 見出し画像の代替テキスト。省略した場合は装飾画像として扱う |
-| `tags` | タグを文字列の配列で書く。先頭の`#`は取り除き、重複はまとめる。記事の末尾にタグページへのリンクとして表示する |
-| `author` | 著者名。省略した場合は`src/config/site.ts`の`site.author`を使う |
-
-見出し画像は`src/content/posts/images/`に置くことを推奨する。ビルド時にファイルの内容からハッシュ付きのURLを作って配信する。
-
-Aboutは記事置き場の外にある`src/content/about.mdx`から生成する固定ページで、URLは`/about`である。記事一覧とRSSフィードには含めない。記事のファイル名に`about`を使った場合は、通常の記事として`/posts/about`で公開する。`index`はトップページ専用のため、記事のファイル名には使わない。
 
 ## アイコン
 

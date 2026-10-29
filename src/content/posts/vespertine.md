@@ -1,6 +1,5 @@
 ---
 title: Björk「Vespertine」の室内楽
-description: 静かな電子音とハープが編む「Vespertine」の世界を、夜の再生に合わせて整理します。
 created: 2026-10-20
 icon: cd
 ---

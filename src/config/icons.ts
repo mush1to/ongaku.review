@@ -9,6 +9,7 @@ export const icons = {
   music: directory + "music.svg",
   cd: directory + "cd.svg",
   world: directory + "world.svg",
+  user: directory + "user.svg",
 } as const;
 
 export type IconName = keyof typeof icons;

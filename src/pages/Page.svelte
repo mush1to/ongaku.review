@@ -23,6 +23,15 @@
   );
 </script>
 
+{#snippet xLogo()}
+  <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+    <path
+      fill="#000"
+      d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"
+    />
+  </svg>
+{/snippet}
+
 <a class="skip-link" href="#main">本文へスキップ</a>
 <div class="window">
   <div class="title-bar" aria-hidden="true">
@@ -178,7 +187,7 @@
           <header class="document-header">
             {#if page.thumbnail}
               <figure class="document-thumbnail">
-                <img src={page.thumbnail.src} alt={page.thumbnail.alt} width="1200" height="630" />
+                <img src={page.thumbnail.src} alt="" width="1200" height="630" />
               </figure>
             {/if}
             <h1>{page.title}</h1>
@@ -196,11 +205,17 @@
                 </p>
               {/if}
             {/snippet}
-            {#if page.isPost}
+            {#if page.author}
               <div class="document-byline">
-                <img src={icons[page.icon ?? "document"]} alt="" width="32" height="32" />
+                <img
+                  class="user-icon"
+                  src={page.author.icon ?? icons.user}
+                  alt=""
+                  width="32"
+                  height="32"
+                />
                 <div class="document-byline-text">
-                  <p class="document-author">{page.author}</p>
+                  <p class="document-author">{page.author.name}</p>
                   <div class="document-dates">{@render dates()}</div>
                 </div>
               </div>
@@ -227,14 +242,50 @@
                 rel="noopener noreferrer"
                 aria-label="Xでポスト"
               >
-                <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                  <path
-                    fill="#000"
-                    d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"
-                  />
-                </svg>
+                {@render xLogo()}
                 <span>ポスト</span>
               </a>
+              {#if page.author}
+                <section class="author-card" aria-labelledby="author-card-title">
+                  <h2 class="author-card-title" id="author-card-title">この記事を書いた人</h2>
+                  <div class="author-card-body">
+                    <img
+                      class="user-icon"
+                      src={page.author.icon ?? icons.user}
+                      alt=""
+                      width="64"
+                      height="64"
+                    />
+                    <div class="author-card-text">
+                      <p class="author-card-name">{page.author.name}</p>
+                      {#if page.author.description}
+                        <p class="author-card-description">{page.author.description}</p>
+                      {/if}
+                      {#if page.author.links.length}
+                        <ul class="author-links" aria-label="{page.author.name}のリンク">
+                          {#each page.author.links as link, index (index)}
+                            <li>
+                              <a
+                                href={link.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                aria-label={link.label}
+                                title={link.label}
+                              >
+                                {#if link.kind === "x"}
+                                  {@render xLogo()}
+                                {:else}
+                                  <img src={icons.world} alt="" width="16" height="16" />
+                                {/if}
+                              </a>
+                            </li>
+                          {/each}
+                        </ul>
+                      {/if}
+                    </div>
+                  </div>
+                </section>
+              {/if}
             </footer>
           {/if}
         </article>

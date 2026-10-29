@@ -1,6 +1,5 @@
 ---
 title: UnpublishedFixtureTitle
-description: UnpublishedFixtureDescription
 isPublished: false
 ---
 

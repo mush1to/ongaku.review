@@ -1,6 +1,5 @@
 ---
 title: 「To Pimp a Butterfly」の構造
-description: Kendrick Lamarのアルバムを、ジャズと語りの切り替わりに沿って聴きます。
 created: 2026-10-19
 icon: music
 ---

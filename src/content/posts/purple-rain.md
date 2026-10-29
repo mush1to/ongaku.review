@@ -1,6 +1,5 @@
 ---
 title: 「Purple Rain」とライブの記憶
-description: Princeの「Purple Rain」を、映画とライブ盤の違いを意識して聴きます。
 created: 2026-10-16
 icon: cd
 ---

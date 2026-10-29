@@ -1,6 +1,5 @@
 ---
 title: ページ送り確認用の記事 3
-description: 記事一覧のページ送りを確認するために追加した短い記事です。
 created: 2026-10-07
 icon: document
 ---
