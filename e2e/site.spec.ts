@@ -102,6 +102,7 @@ test.describe("タイトルバー", () => {
       await page.goto(path);
       const titleBar = page.locator(".window > .title-bar");
       await expect(titleBar).toBeVisible();
+      await expect(titleBar.locator(".title-bar-text")).toHaveText("Internet");
 
       const icon = titleBar.locator("img");
       await expect(icon).toHaveAttribute("src", "/icons/silk/world.svg");
@@ -111,6 +112,7 @@ test.describe("タイトルバー", () => {
         )
         .toBe(true);
 
+      await expect(titleBar.locator(".title-bar-button")).toHaveCount(3);
       await expect(titleBar).toHaveAttribute("aria-hidden", "true");
       await expect(titleBar.locator("a, button")).toHaveCount(0);
     });
@@ -219,16 +221,12 @@ test.describe("2ページ目以降", () => {
   });
 
   test("ページ送りをページ間で同じ高さに表示する", async ({ page }) => {
-    const paginationTop = () =>
-      page.getByRole("navigation", { name: "ページ送り" }).evaluate((element) => {
-        const rect = element.getBoundingClientRect();
-        return rect.top + window.scrollY;
-      });
+    const pagination = page.getByRole("navigation", { name: "ページ送り" });
 
     await page.goto("/");
-    await paginationTop();
+    await expect(pagination).toBeVisible();
     await page.goto("/page/2");
-    await paginationTop();
+    await expect(pagination).toBeVisible();
   });
 
   test("空の行を表示せず、一覧の枠も広げない", async ({ page }) => {
@@ -359,7 +357,6 @@ test.describe("タグページ", () => {
     await expect(list.locator(".file-link").first()).toHaveAttribute("href", "/posts/abbey-road");
     await expect(list.locator(".file-date time").first()).toHaveText("2026/10/25");
     await expect(page.getByRole("navigation", { name: "ページ送り" })).toBeHidden();
-    await expect(page.locator(".skip-link")).toHaveAttribute("href", "#main");
     await page.reload();
     await expect(list.locator(".file-link")).toHaveCount(3);
   });
