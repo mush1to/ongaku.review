@@ -595,7 +595,7 @@ test.describe("記事ページの構成", () => {
     const adjacent = page.getByRole("navigation", { name: "前後の記事" });
     await expect(adjacent.locator("a[rel='prev']")).toHaveCount(0);
     const next = adjacent.locator("a[rel='next']");
-    await expect(next).toHaveAttribute("href", "/posts/pagination-check-02");
+    await expect(next).toHaveAttribute("href", "/posts/horses");
   });
 });
 

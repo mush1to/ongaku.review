@@ -10,11 +10,12 @@ import { normalizeSearchPath, normalizeTag, tagRoutePath } from "../search-path"
 import { articleDescription, descriptionLimit } from "./description";
 import { imageSizeFromFile } from "./image-size";
 
-export const contentDirectory = "src/content/posts";
-export const aboutDocument = "src/content/about.mdx";
-export const usersDocument = "src/content/users.yaml";
-export const usersDirectory = "src/content/users";
-const assetRoot = "src/content";
+export const contentRoot = (process.env.CONTENT_ROOT ?? "src/content").replace(/\/+$/, "");
+export const contentDirectory = `${contentRoot}/posts`;
+export const aboutDocument = `${contentRoot}/about.mdx`;
+export const usersDocument = `${contentRoot}/users.yaml`;
+export const usersDirectory = `${contentRoot}/users`;
+const assetRoot = contentRoot;
 /** Formats X accepts for summary_large_image cards. User icons accept the same formats. */
 const imageExtensions = [".jpg", ".jpeg", ".png", ".webp"];
 const imageMediaTypes: Record<string, string> = {

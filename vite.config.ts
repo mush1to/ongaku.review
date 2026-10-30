@@ -8,6 +8,7 @@ import type { PreviewServer, ViteDevServer } from "vite";
 import {
   aboutDocument,
   contentDirectory,
+  contentRoot,
   invalidateContentCache,
   listPosts,
   loadAboutPage,
@@ -58,7 +59,7 @@ export default defineConfig(async ({ command, mode }) => {
         const embedAssets = await collectEmbedAssets(ctx, docs);
         const result = await planCollectionAssetsFromDocuments({
           root: ctx.root,
-          contentRoot: "src/content",
+          contentRoot,
           documents: docs.map((doc) => ({
             documentPath: doc.documentPath,
             pagePath: doc.path,
@@ -200,9 +201,9 @@ export default defineConfig(async ({ command, mode }) => {
             });
         },
         configureServer(server: ViteDevServer) {
-          const contentRoot = path.resolve(root, "src/content");
+          const contentRootPath = path.resolve(root, contentRoot);
           server.watcher.on("all", (_event, file) => {
-            if (path.resolve(file).startsWith(contentRoot + path.sep)) invalidateContentCache();
+            if (path.resolve(file).startsWith(contentRootPath + path.sep)) invalidateContentCache();
           });
           server.middlewares.use(async (request, response, next) => {
             try {
