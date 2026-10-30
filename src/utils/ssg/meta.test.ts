@@ -21,6 +21,8 @@ const metaContents = (html: string, attribute: "name" | "property", key: string)
 const metaContent = (html: string, attribute: "name" | "property", key: string) =>
   metaContents(html, attribute, key)[0];
 
+const canonicalHref = (html: string) => /<link rel="canonical" href="([^"]*)"/.exec(html)?.[1];
+
 const post: PageData = {
   kind: "page",
   path: "/posts/abbey-road",
@@ -179,7 +181,21 @@ describe("pageHead の記事以外のページ", () => {
 
   it("ページ送りとタグページのcanonicalにも実URLを出す", () => {
     expect(pageUrl("https://ongaku.review", "/")).toBe("https://ongaku.review");
-    expect(pageUrl("https://ongaku.review", "/page/2")).toBe("https://ongaku.review/page/2");
+
+    const pages: [PageData, string][] = [
+      [home, "https://ongaku.review"],
+      [{ ...home, path: "/page/2", title: "2ページ目" }, "https://ongaku.review/page/2"],
+      [
+        { ...home, kind: "tag", path: "/tags/ロック", title: "#ロック", tag: "ロック" },
+        "https://ongaku.review/tags/ロック",
+      ],
+    ];
+    for (const [page, href] of pages) {
+      const html = head(page);
+
+      expect(canonicalHref(html), page.path).toBe(href);
+      expect(metaContent(html, "property", "og:url"), page.path).toBe(href);
+    }
   });
 
   it("404はcanonicalを出さず、noindexにする", () => {

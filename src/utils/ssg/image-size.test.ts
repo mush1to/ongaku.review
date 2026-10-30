@@ -61,6 +61,7 @@ const webpExtended = (width: number, height: number) => {
   const data = new Uint8Array(30);
   data.set([...Buffer.from("RIFF", "ascii")], 0);
   data.set([...Buffer.from("WEBP", "ascii")], 8);
+  new DataView(data.buffer).setUint32(4, data.length - 8, true);
   data.set([...Buffer.from("VP8X", "ascii")], 12);
   const view = new DataView(data.buffer);
   view.setUint32(16, 10, true);
@@ -74,6 +75,7 @@ const webpLossless = (width: number, height: number) => {
   const data = new Uint8Array(30);
   data.set([...Buffer.from("RIFF", "ascii")], 0);
   data.set([...Buffer.from("WEBP", "ascii")], 8);
+  new DataView(data.buffer).setUint32(4, data.length - 8, true);
   data.set([...Buffer.from("VP8L", "ascii")], 12);
   new DataView(data.buffer).setUint32(16, 10, true);
   data[20] = 0x2f;
@@ -86,6 +88,7 @@ const webpLossy = (width: number, height: number) => {
   const data = new Uint8Array(30);
   data.set([...Buffer.from("RIFF", "ascii")], 0);
   data.set([...Buffer.from("WEBP", "ascii")], 8);
+  new DataView(data.buffer).setUint32(4, data.length - 8, true);
   data.set([...Buffer.from("VP8 ", "ascii")], 12);
   new DataView(data.buffer).setUint32(16, 10, true);
   data.set([0x9d, 0x01, 0x2a], 23);
