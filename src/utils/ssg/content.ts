@@ -8,7 +8,7 @@ import { site } from "../../config/site";
 import type { AuthorLink } from "../../pages/page-data";
 import { normalizeSearchPath, normalizeTag, tagRoutePath } from "../search-path";
 import { articleDescription, descriptionLimit } from "./description";
-import { imageSize } from "./image-size";
+import { imageSizeFromFile } from "./image-size";
 
 export const contentDirectory = "src/content/posts";
 export const aboutDocument = "src/content/about.mdx";
@@ -260,11 +260,17 @@ async function readImage(
   if (!(await stat(sourcePath).catch(() => null))?.isFile())
     throw new Error(`${file}: ${field} の画像 ${reference} が見つかりません`);
   const encodedReference = reference.split("/").map(encodeURIComponent).join("/");
-  const size = imageSize(await readFile(sourcePath));
+  // The reference can point at a file with another extension, so read the real one too.
+  const mediaType = imageMediaTypes[path.extname(sourcePath).toLowerCase()];
+  if (!mediaType)
+    throw new Error(
+      `${file}: ${field} の画像 ${reference} は、リンク先の ${path.basename(sourcePath)} が ${imageExtensions.join("・")} のいずれでもありません`,
+    );
+  const size = await imageSizeFromFile(sourcePath);
   return {
     sourcePath,
     publicPath: new URL(encodedReference, "https://local" + publicBase).pathname,
-    mediaType: imageMediaTypes[path.extname(sourcePath).toLowerCase()]!,
+    mediaType,
     width: size?.width,
     height: size?.height,
   };

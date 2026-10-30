@@ -518,6 +518,16 @@ describe("thumbnail", () => {
         ?.publicPaths,
     ).toContain(thumbnail.publicPath);
   });
+  it("リンク先の拡張子が対応形式でない画像は拒否する", async () => {
+    const root = await createRootWithImage("thumbnail: ./linked.png");
+    const directory = path.join(root, "src/content/posts");
+    await writeFile(path.join(directory, "actual.gif"), "");
+    await symlink(path.join(directory, "actual.gif"), path.join(directory, "linked.png"));
+
+    await expect(loadDocs(root)).rejects.toThrow(
+      "src/content/posts/first.md: thumbnail の画像 ./linked.png は、リンク先の actual.gif が .jpg・.jpeg・.png・.webp のいずれでもありません",
+    );
+  });
 });
 
 describe("tags", () => {

@@ -107,6 +107,35 @@ describe("pageHead の記事ページ", () => {
   });
 });
 
+describe("pageHead のカード種別", () => {
+  const withSize = (width: number, height: number): PageData => ({
+    ...post,
+    thumbnail: { src: "/assets/content/small.png", width, height, mediaType: "image/png" },
+  });
+
+  const cases: [number, number, string][] = [
+    [299, 157, "summary"],
+    [300, 157, "summary_large_image"],
+    [300, 156, "summary"],
+    [1200, 630, "summary_large_image"],
+  ];
+
+  for (const [width, height, card] of cases)
+    it(`${width}×${height}のthumbnailは${card}のカードにする`, () => {
+      const html = head(withSize(width, height));
+
+      expect(metaContent(html, "name", "twitter:card")).toBe(card);
+      expect(metaContent(html, "property", "og:image")).toBe(
+        "https://ongaku.review/assets/content/small.png",
+      );
+      expect(metaContent(html, "name", "twitter:image")).toBe(
+        "https://ongaku.review/assets/content/small.png",
+      );
+      expect(metaContent(html, "property", "og:image:width")).toBe(String(width));
+      expect(metaContent(html, "property", "og:image:height")).toBe(String(height));
+    });
+});
+
 describe("pageHead の記事以外のページ", () => {
   const home: PageData = {
     kind: "home",

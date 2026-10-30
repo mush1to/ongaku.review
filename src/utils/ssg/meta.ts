@@ -21,6 +21,18 @@ export function pageUrl(siteUrl: string, pagePath: string): string {
 /** Frontmatter dates are calendar days in JST, so the article times are too. */
 const articleTime = (date: string) => date + "T00:00:00+09:00";
 
+/**
+ * X replaces a large card with the small one below 300×157, so the page declares
+ * the card X would show. An unreadable size keeps the large card: the image is
+ * still the article's own, and X decides on the file itself.
+ */
+function cardType(thumbnail: PageData["thumbnail"]): "summary" | "summary_large_image" {
+  if (!thumbnail) return "summary";
+  const { width, height } = thumbnail;
+  if (width === undefined || height === undefined) return "summary_large_image";
+  return width >= 300 && height >= 157 ? "summary_large_image" : "summary";
+}
+
 export interface PageHeadInput {
   page: PageData;
   site: SiteMeta;
@@ -104,7 +116,7 @@ export function pageHead({ page, site, serve }: PageHeadInput): HeadInput {
     canonical: page.kind === "404" ? undefined : loc,
     robots: serve || page.kind === "404" ? "noindex, nofollow" : undefined,
     ogType: isPost ? "article" : "website",
-    twitterCard: thumbnail ? "summary_large_image" : "summary",
+    twitterCard: cardType(thumbnail),
     ogImage: image.url,
     emitSiteName: true,
     jsonLd: structuredData && [{ json: JSON.stringify(structuredData) }],
