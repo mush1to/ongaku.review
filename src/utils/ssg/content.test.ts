@@ -384,6 +384,7 @@ describe("thumbnail", () => {
     expect(doc?.thumbnail).toEqual({
       sourcePath: path.join(root, "src/content/posts/img/cover.png"),
       publicPath: "/posts/first/img/cover.png",
+      mediaType: "image/png",
     });
   });
 
@@ -395,6 +396,7 @@ describe("thumbnail", () => {
     expect(doc?.thumbnail).toEqual({
       sourcePath: path.join(root, "src/content/posts/img/cover.png"),
       publicPath: "/posts/first/img/cover.png",
+      mediaType: "image/png",
     });
   });
 
@@ -516,6 +518,16 @@ describe("thumbnail", () => {
         ?.publicPaths,
     ).toContain(thumbnail.publicPath);
   });
+  it("リンク先の拡張子が対応形式でない画像は拒否する", async () => {
+    const root = await createRootWithImage("thumbnail: ./linked.png");
+    const directory = path.join(root, "src/content/posts");
+    await writeFile(path.join(directory, "actual.gif"), "");
+    await symlink(path.join(directory, "actual.gif"), path.join(directory, "linked.png"));
+
+    await expect(loadDocs(root)).rejects.toThrow(
+      "src/content/posts/first.md: thumbnail の画像 ./linked.png は、リンク先の actual.gif が .jpg・.jpeg・.png・.webp のいずれでもありません",
+    );
+  });
 });
 
 describe("tags", () => {
@@ -619,7 +631,7 @@ describe("loadUsers", () => {
       id: "mush1to",
       name: "むしにゃんこ",
       description: "趣味で固定給貰ってます。",
-      icon: { sourcePath: icon, publicPath: "/users/mush1to.webp" },
+      icon: { sourcePath: icon, publicPath: "/users/mush1to.webp", mediaType: "image/webp" },
       links: [
         { kind: "x", url: "https://x.com/mush1to", label: "X（@mush1to）" },
         { kind: "website", url: "https://links.6410.org/", label: "links.6410.org" },
