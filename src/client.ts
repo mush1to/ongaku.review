@@ -171,6 +171,7 @@ const statusText = document.querySelector<HTMLElement>("[data-status-text]");
 const statusDefault = statusText?.textContent ?? "";
 const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
 let selectionTimer: ReturnType<typeof setTimeout> | undefined;
+let navigationTimeout: ReturnType<typeof setTimeout> | undefined;
 let navigatingTo: string | undefined;
 const showStatus = (text: string) => {
   if (statusText && navigatingTo === undefined) statusText.textContent = text;
@@ -178,6 +179,16 @@ const showStatus = (text: string) => {
 const clearSelection = () => {
   for (const row of document.querySelectorAll(".file-table tr.is-selected"))
     row.classList.remove("is-selected");
+};
+const resetNavigation = () => {
+  clearTimeout(selectionTimer);
+  clearTimeout(navigationTimeout);
+  selectionTimer = undefined;
+  navigationTimeout = undefined;
+  navigatingTo = undefined;
+  document.documentElement.toggleAttribute("data-navigating", false);
+  clearSelection();
+  if (statusText) statusText.textContent = statusDefault;
 };
 
 for (const row of document.querySelectorAll<HTMLTableRowElement>(
@@ -213,6 +224,8 @@ document.addEventListener("click", (event) => {
   }
   navigatingTo = link.href;
   document.documentElement.toggleAttribute("data-navigating", true);
+  clearTimeout(navigationTimeout);
+  navigationTimeout = setTimeout(resetNavigation, 5000);
   const row = link.matches(".file-table .file-link") ? link.closest("tr") : null;
   if (!row) return;
   clearSelection();
@@ -226,11 +239,5 @@ document.addEventListener("click", (event) => {
 });
 
 window.addEventListener("pageshow", (event) => {
-  if (!event.persisted) return;
-  clearTimeout(selectionTimer);
-  selectionTimer = undefined;
-  navigatingTo = undefined;
-  document.documentElement.toggleAttribute("data-navigating", false);
-  clearSelection();
-  if (statusText) statusText.textContent = statusDefault;
+  if (event.persisted) resetNavigation();
 });

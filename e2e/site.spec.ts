@@ -191,6 +191,39 @@ test.describe("ステータスバー", () => {
     await expect(page).toHaveURL(/\/posts\/abbey-road$/);
   });
 
+  test("遷移を中止して5秒経つと、選択色・走査アニメ・右ペインを元に戻す", async ({ page }) => {
+    await page.clock.install();
+    await page.goto("/");
+    await page.clock.pauseAt(Date.now() + 1000);
+    let requested: () => void;
+    const navigationRequested = new Promise<void>((resolve) => (requested = resolve));
+    await page.route("**/posts/abbey-road", () => requested());
+    const row = page.locator(".file-table tbody tr").filter({ hasText: "アビイ・ロード" });
+    const detail = statusBar(page).locator(".status-bar-detail");
+    const progress = statusBar(page).locator(".status-bar-progress");
+    const rowDetail = "「アビイ・ロード」を2026年に聴く　作成日時: 2026/10/25";
+
+    await row.getByRole("link").click();
+    await page.clock.runFor(150);
+    await navigationRequested;
+    await (await page.context().newCDPSession(page)).send("Page.stopLoading");
+    await expect(page).toHaveURL(/\/$/);
+    await expect(row).toHaveClass(/\bis-selected\b/);
+    await expect(page.locator("html")).toHaveAttribute("data-navigating");
+    await expect(detail).toHaveText(rowDetail);
+
+    await page.clock.runFor(4800);
+    await expect(row).toHaveClass(/\bis-selected\b/);
+    await page.clock.runFor(100);
+    await expect(row).not.toHaveClass(/\bis-selected\b/);
+    await expect(page.locator("html")).not.toHaveAttribute("data-navigating");
+    await expect(progress).toBeHidden();
+    await expect(detail).toHaveText("ongaku.review");
+    await page.mouse.move(0, 0);
+    await row.hover();
+    await expect(detail).toHaveText(rowDetail);
+  });
+
   test.describe("スマートフォンで動きを減らす設定", () => {
     test.use({ viewport: { width: 375, height: 812 }, reducedMotion: "reduce" });
 
