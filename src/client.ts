@@ -2,7 +2,6 @@ import "./styles.css";
 import { initIslands } from "@ox-content/islands";
 import { initSvelteHtmlHost } from "@ox-content/vite-plugin-svelte/html-host/client";
 import modules from "virtual:ox-content-svelte/html-host/modules";
-import { site } from "./config/site";
 
 initSvelteHtmlHost({ modules, initIslands, mount: { mode: "hydrate" } });
 
@@ -214,7 +213,6 @@ document.addEventListener("click", (event) => {
   }
   navigatingTo = link.href;
   document.documentElement.toggleAttribute("data-navigating", true);
-  if (statusText) statusText.textContent = site.statusBar.opening;
   const row = link.matches(".file-table .file-link") ? link.closest("tr") : null;
   if (!row) return;
   clearSelection();

@@ -169,6 +169,28 @@ test.describe("ステータスバー", () => {
     await expect(detail).toHaveText("ongaku.review");
   });
 
+  test("一覧の行を選ぶと、右ペインの文字を変えずに走査アニメを出してから遷移する", async ({
+    page,
+  }) => {
+    await page.clock.install();
+    await page.goto("/");
+    await page.clock.pauseAt(Date.now() + 1000);
+    const row = page.locator(".file-table tbody tr").filter({ hasText: "アビイ・ロード" });
+    const detail = statusBar(page).locator(".status-bar-detail");
+    const progress = statusBar(page).locator(".status-bar-progress");
+    await expect(progress).toBeHidden();
+
+    await row.getByRole("link").click();
+    await expect(row).toHaveClass(/\bis-selected\b/);
+    await expect(progress).toBeVisible();
+    await expect(progress).toHaveAttribute("aria-hidden", "true");
+    await expect(detail).toHaveText("「アビイ・ロード」を2026年に聴く　作成日時: 2026/10/25");
+    await expect(page).toHaveURL(/\/$/);
+
+    await page.clock.runFor(150);
+    await expect(page).toHaveURL(/\/posts\/abbey-road$/);
+  });
+
   test.describe("スマートフォンで動きを減らす設定", () => {
     test.use({ viewport: { width: 375, height: 812 }, reducedMotion: "reduce" });
 

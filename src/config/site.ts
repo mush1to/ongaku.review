@@ -16,7 +16,6 @@ const statusBar = {
   updated: (date: string) => `更新日時: ${date}`,
   created: (date: string) => `作成日時: ${date}`,
   readingTime: (minutes: number) => `読了目安: 約 ${minutes} 分`,
-  opening: "開いています...",
 };
 
 export const site = {
