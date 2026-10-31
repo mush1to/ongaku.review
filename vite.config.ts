@@ -20,10 +20,12 @@ import {
 } from "./src/utils/ssg/content";
 import { site } from "./src/config/site";
 import { collectEmbedAssets, embedOptions } from "./src/utils/ssg/embeds";
+import { resolveBuildOutDir } from "./src/utils/ssg/output-dir";
 import { tagRoutePath } from "./src/utils/search-path";
 
 export default defineConfig(async ({ command, mode }) => {
   const root = import.meta.dirname;
+  const buildOutDir = resolveBuildOutDir(process.env.BUILD_OUT_DIR);
   let searchOutputDirectory: string | undefined;
   // Ox Content writes the search index itself, and a build already leaves drafts
   // out of it. The dev server indexes drafts, so serve the filtered index there to
@@ -81,6 +83,7 @@ export default defineConfig(async ({ command, mode }) => {
     oxContent: {
       ...embedOptions(root),
       srcDir: contentDirectory,
+      outDir: buildOutDir,
       // The search index must cover the same files as the routes, which only read these two.
       extensions: [".md", ".mdx"],
       docs: false,
@@ -145,6 +148,7 @@ export default defineConfig(async ({ command, mode }) => {
           },
         },
         configurePreviewServer(server: PreviewServer) {
+          const previewRoot = path.resolve(root, buildOutDir);
           server.middlewares.use(async (request, response, next) => {
             try {
               const url = new URL(request.url ?? "/", "http://localhost");
@@ -158,14 +162,14 @@ export default defineConfig(async ({ command, mode }) => {
                       ? url.pathname.slice(0, -".html".length)
                       : undefined;
               if (!target) return next();
-              const dist = path.resolve(root, "dist");
               const decodedTarget = decodeURIComponent(target);
               const output = path.resolve(
-                dist,
+                previewRoot,
                 target === "/" ? "index.html" : "." + decodedTarget + ".html",
               );
               if (
-                (output === path.join(dist, "index.html") || output.startsWith(dist + path.sep)) &&
+                (output === path.join(previewRoot, "index.html") ||
+                  output.startsWith(previewRoot + path.sep)) &&
                 (await stat(output).catch(() => null))?.isFile()
               ) {
                 response.statusCode = 301;
@@ -181,17 +185,16 @@ export default defineConfig(async ({ command, mode }) => {
           return () =>
             server.middlewares.use(async (_request, response, next) => {
               try {
-                const dist = path.resolve(root, "dist");
                 const requested = path.resolve(
-                  dist,
+                  previewRoot,
                   "." + decodeURIComponent((_request.url ?? "/").split("?")[0]),
                 );
                 if (
-                  requested.startsWith(dist + path.sep) &&
+                  requested.startsWith(previewRoot + path.sep) &&
                   (await stat(requested).catch(() => null))?.isFile()
                 )
                   return next();
-                const html = await readFile(path.join(root, "dist/404.html"), "utf8");
+                const html = await readFile(path.join(previewRoot, "404.html"), "utf8");
                 response.statusCode = 404;
                 response.setHeader("Content-Type", "text/html; charset=utf-8");
                 response.end(html);
@@ -261,6 +264,7 @@ export default defineConfig(async ({ command, mode }) => {
     ],
     build: {
       manifest: true,
+      outDir: buildOutDir,
       rolldownOptions: { input: { client: "src/client.ts" } },
     },
     test: { include: ["src/**/*.test.ts"] },

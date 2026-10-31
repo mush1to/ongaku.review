@@ -70,6 +70,7 @@ api_key.txt
 
 # サイトの生成物
 dist/
+dist-e2e/
 .vite/
 .artifacts/
 .claude/skills/

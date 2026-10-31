@@ -2,8 +2,9 @@ import { defineConfig, devices } from "@playwright/test";
 
 const port = 4173;
 const baseURL = `http://127.0.0.1:${port}`;
-// E2E は本番コンテンツではなく、この fixture を入力に build と preview を行う。
+// E2E は本番コンテンツと本番の出力先を使わず、fixture 入力・dist-e2e 出力で build と preview を行う。
 const contentRoot = "e2e/fixtures/content";
+const buildOutDir = "dist-e2e";
 
 export default defineConfig({
   testDir: "./e2e",
@@ -23,7 +24,7 @@ export default defineConfig({
   projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
   webServer: {
     command: `npm run build && npm run preview -- --port ${port} --strictPort`,
-    env: { CONTENT_ROOT: contentRoot },
+    env: { CONTENT_ROOT: contentRoot, BUILD_OUT_DIR: buildOutDir },
     url: baseURL,
     reuseExistingServer: false,
     timeout: 120_000,
