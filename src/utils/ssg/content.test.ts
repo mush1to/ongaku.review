@@ -14,6 +14,7 @@ import {
   loadSearchIndex,
   loadSearchPages,
   loadUsers,
+  resolveContentRoot,
 } from "./content";
 
 const roots: string[] = [];
@@ -848,5 +849,32 @@ describe("listPosts", () => {
     const docs = await loadDocs(root);
 
     expect(listPosts(docs).map((doc) => doc.title)).toEqual(["新しい記事", "古い記事", "日付なし"]);
+  });
+});
+
+describe("resolveContentRoot", () => {
+  it("未設定ならsrc/contentを使う", () => {
+    expect(resolveContentRoot(undefined)).toBe("src/content");
+  });
+
+  it("相対パスの末尾のスラッシュを落とす", () => {
+    expect(resolveContentRoot("e2e/fixtures/content/")).toBe("e2e/fixtures/content");
+  });
+
+  it("絶対パスを拒否する", () => {
+    expect(() => resolveContentRoot("/tmp/content")).toThrow(
+      "CONTENT_ROOT: リポジトリ内の相対パスで指定してください",
+    );
+  });
+
+  it("親ディレクトリへ移動するパスを拒否する", () => {
+    for (const value of ["..", "../x", "a/../../x", "./.."])
+      expect(() => resolveContentRoot(value), value).toThrow(
+        "CONTENT_ROOT: リポジトリ内の相対パスで指定してください",
+      );
+  });
+
+  it("空文字を拒否する", () => {
+    expect(() => resolveContentRoot("")).toThrow("CONTENT_ROOT:");
   });
 });

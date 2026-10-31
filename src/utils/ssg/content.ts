@@ -10,11 +10,26 @@ import { normalizeSearchPath, normalizeTag, tagRoutePath } from "../search-path"
 import { articleDescription, descriptionLimit } from "./description";
 import { imageSizeFromFile } from "./image-size";
 
-export const contentDirectory = "src/content/posts";
-export const aboutDocument = "src/content/about.mdx";
-export const usersDocument = "src/content/users.yaml";
-export const usersDirectory = "src/content/users";
-const assetRoot = "src/content";
+export function resolveContentRoot(value: string | undefined) {
+  const root = (value ?? "src/content").replace(/\/+$/, "");
+  const normalized = path.normalize(root);
+  if (
+    !root ||
+    normalized === "." ||
+    path.isAbsolute(normalized) ||
+    normalized.split(/[\\/]/)[0] === ".."
+  )
+    throw new Error(
+      "CONTENT_ROOT: リポジトリ内の相対パスで指定してください（絶対パスと親ディレクトリへの移動は未対応）",
+    );
+  return root;
+}
+export const contentRoot = resolveContentRoot(process.env.CONTENT_ROOT);
+export const contentDirectory = `${contentRoot}/posts`;
+export const aboutDocument = `${contentRoot}/about.mdx`;
+export const usersDocument = `${contentRoot}/users.yaml`;
+export const usersDirectory = `${contentRoot}/users`;
+const assetRoot = contentRoot;
 /** Formats X accepts for summary_large_image cards. User icons accept the same formats. */
 const imageExtensions = [".jpg", ".jpeg", ".png", ".webp"];
 const imageMediaTypes: Record<string, string> = {
