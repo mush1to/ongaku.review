@@ -234,6 +234,7 @@ test.describe("2ページ目以降", () => {
     const rows = await page.locator(".file-table tbody tr").count();
     const links = await page.locator(".file-link").count();
 
+    expect(rows).toBe(1);
     expect(rows).toBe(links);
   });
 });
@@ -271,6 +272,8 @@ test.describe("スマートフォン表示", () => {
     const rows = await page.locator(".file-table tbody tr").count();
     const links = await page.locator(".file-link").count();
     expect(rows).toBe(links);
+    expect(links).toBe(1);
+    await expect(page.locator(".file-link")).toHaveAttribute("href", "/posts/pagination-check-01");
     const gap = await page.evaluate(() => {
       const pane = document.querySelector(".pane")?.getBoundingClientRect();
       const pagination = document.querySelector(".pagination")?.getBoundingClientRect();

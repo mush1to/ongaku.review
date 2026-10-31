@@ -12,9 +12,15 @@ import { imageSizeFromFile } from "./image-size";
 
 export function resolveContentRoot(value: string | undefined) {
   const root = (value ?? "src/content").replace(/\/+$/, "");
-  if (!root || path.isAbsolute(root))
+  const normalized = path.normalize(root);
+  if (
+    !root ||
+    normalized === "." ||
+    path.isAbsolute(normalized) ||
+    normalized.split(/[\\/]/)[0] === ".."
+  )
     throw new Error(
-      "CONTENT_ROOT: リポジトリルートからの相対パスで指定してください（絶対パスは未対応）",
+      "CONTENT_ROOT: リポジトリ内の相対パスで指定してください（絶対パスと親ディレクトリへの移動は未対応）",
     );
   return root;
 }

@@ -863,8 +863,15 @@ describe("resolveContentRoot", () => {
 
   it("絶対パスを拒否する", () => {
     expect(() => resolveContentRoot("/tmp/content")).toThrow(
-      "CONTENT_ROOT: リポジトリルートからの相対パスで指定してください（絶対パスは未対応）",
+      "CONTENT_ROOT: リポジトリ内の相対パスで指定してください",
     );
+  });
+
+  it("親ディレクトリへ移動するパスを拒否する", () => {
+    for (const value of ["..", "../x", "a/../../x", "./.."])
+      expect(() => resolveContentRoot(value), value).toThrow(
+        "CONTENT_ROOT: リポジトリ内の相対パスで指定してください",
+      );
   });
 
   it("空文字を拒否する", () => {
