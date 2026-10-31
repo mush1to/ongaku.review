@@ -758,12 +758,15 @@ test.describe("検索ウィンドウ", () => {
     await page.setViewportSize({ width: 1280, height: 600 });
     await page.goto("/posts/abbey-road/");
     const scrollX = await page.evaluate(() => window.scrollX);
+    const windowX = (await page.locator(".window").boundingBox())!.x;
     await openSearchWindow(page);
 
     expect(
       await page.evaluate(() => document.elementFromPoint(window.innerWidth - 1, 100)?.tagName),
     ).toBe("DIALOG");
     expect(await page.evaluate(() => window.scrollX)).toBe(scrollX);
+    // スクロールバー幅の補償が欠けると中央寄せの.windowが動いてもscrollXは0のままなので、要素の位置でも押さえる。
+    expect((await page.locator(".window").boundingBox())!.x).toBe(windowX);
   });
 
   test("閉じるボタン・Esc・ウィンドウの外のクリックで閉じ、Searchボタンにフォーカスを戻す", async ({
