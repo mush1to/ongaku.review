@@ -266,7 +266,7 @@ test.describe("スマートフォン表示", () => {
     expect(closeBox?.height).toBeGreaterThanOrEqual(44);
   });
 
-  test("2ページ目も一覧の直後にページ送りを表示する", async ({ page }) => {
+  test("2ページ目も一覧より下にページ送りを配置する", async ({ page }) => {
     await page.goto("/page/2");
     const rows = await page.locator(".file-table tbody tr").count();
     const links = await page.locator(".file-link").count();
@@ -455,7 +455,7 @@ test.describe("記事ページの構成", () => {
     }
   });
 
-  test("執筆者の説明は狭い画面でも句の途中で折らず、改行した位置で改行する", async ({ page }) => {
+  test("狭い画面の執筆者説明に改行保持・通常の折返しを設定する", async ({ page }) => {
     await page.setViewportSize({ width: 375, height: 800 });
     await page.goto("/posts/abbey-road");
     const description = page.locator(".author-card-description");
