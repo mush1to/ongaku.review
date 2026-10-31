@@ -1211,11 +1211,11 @@ body:has(.search-window[open]) .window > .title-bar {
 
 .site-footer {
   margin-top: auto;
-  padding: 0.25rem 0.25rem 0;
+  padding: 0.25rem 0.75rem 0;
   color: #33415c;
   font-size: 0.75rem;
   line-height: 1.6;
-  text-align: center;
+  text-align: right;
 }
 
 .site-footer p {
