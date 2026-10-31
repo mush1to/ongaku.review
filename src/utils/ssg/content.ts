@@ -10,7 +10,15 @@ import { normalizeSearchPath, normalizeTag, tagRoutePath } from "../search-path"
 import { articleDescription, descriptionLimit } from "./description";
 import { imageSizeFromFile } from "./image-size";
 
-export const contentRoot = (process.env.CONTENT_ROOT ?? "src/content").replace(/\/+$/, "");
+export function resolveContentRoot(value: string | undefined) {
+  const root = (value ?? "src/content").replace(/\/+$/, "");
+  if (!root || path.isAbsolute(root))
+    throw new Error(
+      "CONTENT_ROOT: リポジトリルートからの相対パスで指定してください（絶対パスは未対応）",
+    );
+  return root;
+}
+export const contentRoot = resolveContentRoot(process.env.CONTENT_ROOT);
 export const contentDirectory = `${contentRoot}/posts`;
 export const aboutDocument = `${contentRoot}/about.mdx`;
 export const usersDocument = `${contentRoot}/users.yaml`;
