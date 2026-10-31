@@ -389,13 +389,24 @@ test.describe("タグページ", () => {
 });
 
 test.describe("記事ページの構成", () => {
-  async function expectSingleElements(page: Page, selectors: string[]) {
+  async function expectElementsInOrder(page: Page, selectors: string[]) {
     for (const selector of selectors) await expect(page.locator(selector)).toHaveCount(1);
+    const followed = await page.evaluate(
+      (list) =>
+        list.slice(1).map((selector, index) => {
+          const before = document.querySelector(list[index]!)!;
+          const after = document.querySelector(selector)!;
+          return Boolean(before.compareDocumentPosition(after) & Node.DOCUMENT_POSITION_FOLLOWING);
+        }),
+      selectors,
+    );
+    for (const [index, value] of followed.entries())
+      expect(value, `${selectors[index]} → ${selectors[index + 1]}`).toBe(true);
   }
 
-  test("記事ページの要素を1つずつ表示する", async ({ page }) => {
+  test("記事ページの要素を1つずつ意味のある順に表示する", async ({ page }) => {
     await page.goto("/posts/pagination-check-01");
-    await expectSingleElements(page, [
+    await expectElementsInOrder(page, [
       ".document-thumbnail",
       ".document-header h1",
       ".document-byline",
@@ -406,7 +417,7 @@ test.describe("記事ページの構成", () => {
     ]);
 
     await page.goto("/posts/abbey-road");
-    await expectSingleElements(page, [
+    await expectElementsInOrder(page, [
       ".document-header h1",
       ".document-byline",
       ".prose",
@@ -591,12 +602,13 @@ test.describe("記事ページの構成", () => {
     await expect(next).toContainText("「アビイ・ロード」を2026年に聴く");
   });
 
-  test("いちばん古い記事は前の記事を持たず、次の記事だけを表示する", async ({ page }) => {
+  test("いちばん古い記事は前の記事を持たず、次の記事を右の列に表示する", async ({ page }) => {
     await page.goto("/posts/pagination-check-01");
     const adjacent = page.getByRole("navigation", { name: "前後の記事" });
     await expect(adjacent.locator("a[rel='prev']")).toHaveCount(0);
     const next = adjacent.locator("a[rel='next']");
     await expect(next).toHaveAttribute("href", "/posts/horses");
+    await expect(next).toHaveCSS("grid-column-start", "2");
   });
 });
 
@@ -729,22 +741,29 @@ test.describe("検索ウィンドウ", () => {
     await expect(page).toHaveURL(/\/posts\/abbey-road$/);
   });
 
-  test("1文字を入力した時点で検索結果の状態を表示する", async ({ page }) => {
+  test("1文字を入力した時点で結果を表示し、窓の上端を動かさずに広げる", async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 600 });
     await page.goto("/");
     const searchWindow = await openSearchWindow(page);
+    const emptyBox = (await searchWindow.boundingBox())!;
     await searchWindow.getByRole("searchbox", { name: "キーワード" }).fill("ア");
     await expect(searchWindow.getByRole("status")).toContainText("「ア」の検索結果");
+    const filledBox = (await searchWindow.boundingBox())!;
+
+    expect(Math.round(filledBox.y)).toBe(Math.round(emptyBox.y));
+    expect(filledBox.height).toBeGreaterThan(emptyBox.height);
   });
 
-  test("背景を右端まで覆う", async ({ page }) => {
+  test("背景を右端まで覆い、開いてもページを横にずらさない", async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 600 });
     await page.goto("/posts/abbey-road/");
+    const scrollX = await page.evaluate(() => window.scrollX);
     await openSearchWindow(page);
 
     expect(
       await page.evaluate(() => document.elementFromPoint(window.innerWidth - 1, 100)?.tagName),
     ).toBe("DIALOG");
+    expect(await page.evaluate(() => window.scrollX)).toBe(scrollX);
   });
 
   test("閉じるボタン・Esc・ウィンドウの外のクリックで閉じ、Searchボタンにフォーカスを戻す", async ({
