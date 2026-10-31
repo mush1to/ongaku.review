@@ -2,6 +2,7 @@ import "./styles.css";
 import { initIslands } from "@ox-content/islands";
 import { initSvelteHtmlHost } from "@ox-content/vite-plugin-svelte/html-host/client";
 import modules from "virtual:ox-content-svelte/html-host/modules";
+import { site } from "./config/site";
 
 initSvelteHtmlHost({ modules, initIslands, mount: { mode: "hydrate" } });
 
@@ -166,3 +167,72 @@ for (const pre of document.querySelectorAll("pre")) {
   });
   pre.append(button, status);
 }
+
+const statusText = document.querySelector<HTMLElement>("[data-status-text]");
+const statusDefault = statusText?.textContent ?? "";
+const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+let selectionTimer: ReturnType<typeof setTimeout> | undefined;
+let navigatingTo: string | undefined;
+const showStatus = (text: string) => {
+  if (statusText && navigatingTo === undefined) statusText.textContent = text;
+};
+const clearSelection = () => {
+  for (const row of document.querySelectorAll(".file-table tr.is-selected"))
+    row.classList.remove("is-selected");
+};
+
+for (const row of document.querySelectorAll<HTMLTableRowElement>(
+  ".file-table tr[data-status-detail]",
+)) {
+  const detail = row.dataset.statusDetail ?? "";
+  const link = row.querySelector(".file-link");
+  row.addEventListener("pointerenter", () => showStatus(detail));
+  row.addEventListener("pointerleave", () => showStatus(statusDefault));
+  link?.addEventListener("focusin", () => showStatus(detail));
+  link?.addEventListener("focusout", () => showStatus(statusDefault));
+}
+
+document.addEventListener("click", (event) => {
+  const link = event.target instanceof Element ? event.target.closest("a[href]") : null;
+  if (
+    !(link instanceof HTMLAnchorElement) ||
+    event.defaultPrevented ||
+    event.button !== 0 ||
+    event.ctrlKey ||
+    event.metaKey ||
+    event.shiftKey ||
+    event.altKey ||
+    link.hasAttribute("target") ||
+    link.hasAttribute("download") ||
+    link.origin !== location.origin ||
+    (link.href.includes("#") && link.href.split("#")[0] === location.href.split("#")[0])
+  )
+    return;
+  if (selectionTimer !== undefined || link.href === navigatingTo) {
+    event.preventDefault();
+    return;
+  }
+  navigatingTo = link.href;
+  document.documentElement.toggleAttribute("data-navigating", true);
+  if (statusText) statusText.textContent = site.statusBar.opening;
+  const row = link.matches(".file-table .file-link") ? link.closest("tr") : null;
+  if (!row) return;
+  clearSelection();
+  row.classList.add("is-selected");
+  if (reducedMotion.matches) return;
+  event.preventDefault();
+  selectionTimer = setTimeout(() => {
+    selectionTimer = undefined;
+    location.href = link.href;
+  }, 120);
+});
+
+window.addEventListener("pageshow", (event) => {
+  if (!event.persisted) return;
+  clearTimeout(selectionTimer);
+  selectionTimer = undefined;
+  navigatingTo = undefined;
+  document.documentElement.toggleAttribute("data-navigating", false);
+  clearSelection();
+  if (statusText) statusText.textContent = statusDefault;
+});

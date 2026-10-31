@@ -17,6 +17,34 @@
       : 0,
   );
   const formatDate = (date: string) => date.replaceAll("-", "/");
+  const characterCount = (html: string) =>
+    [
+      ...html
+        .replace(/<(script|style|svg|template)\b[\s\S]*?<\/\1>/gi, "")
+        .replace(/<[^>]*>/g, "")
+        .replace(/&(?:#\d+|#x[\da-f]+|[a-z][a-z\d]*);/gi, "&")
+        .replace(/\s+/g, ""),
+    ].length;
+  const statusDetail = ({
+    title,
+    created,
+    updated,
+    body,
+  }: Pick<PageData, "title" | "created" | "updated" | "body">) =>
+    [
+      title,
+      updated
+        ? site.statusBar.updated(formatDate(updated))
+        : created && site.statusBar.created(formatDate(created)),
+      body !== undefined &&
+        site.statusBar.readingTime(Math.max(1, Math.ceil(characterCount(body) / 500))),
+    ]
+      .filter(Boolean)
+      .join("　");
+  const objectCount = $derived(
+    page.kind === "page" ? 1 : page.kind === "404" ? 0 : (page.posts?.length ?? 0),
+  );
+  const pageDetail = $derived(page.kind === "page" ? statusDetail(page) : site.name);
   const shareUrl = $derived(
     "https://x.com/intent/post?" +
       new URLSearchParams({ text: page.title, url: site.url + page.path }).toString(),
@@ -121,7 +149,7 @@
               </thead>
               <tbody>
                 {#each page.posts ?? [] as post (post.path)}
-                  <tr>
+                  <tr data-status-detail={statusDetail(post)}>
                     <td>
                       <a class="file-link" href={post.path}>
                         <img src={icons[post.icon]} alt="" width="24" height="24" />
@@ -317,6 +345,13 @@
     <footer class="site-footer">
       <p>© 2026 {site.title}</p>
     </footer>
+  </div>
+  <div class="status-bar">
+    <div class="status-bar-pane status-bar-count">{site.statusBar.objects(objectCount)}</div>
+    <div class="status-bar-pane status-bar-detail">
+      <span class="status-bar-progress" aria-hidden="true"></span>
+      <span class="status-bar-text" data-status-text>{pageDetail}</span>
+    </div>
   </div>
 </div>
 <dialog
