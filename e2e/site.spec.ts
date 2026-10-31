@@ -35,7 +35,7 @@ test.describe("トップページ", () => {
     expect(structuredData.url).toBe("https://ongaku.review");
   });
 
-  test("ナビゲーションをHome・About・Searchの順に並べ、現在のページを示す", async ({ page }) => {
+  test("ナビゲーションにSearchを表示し、現在のページを示す", async ({ page }) => {
     const navigation = mainNavigation(page);
     await expect(navigation.getByRole("button", { name: "Search" })).toBeVisible();
     await expect(navigation.getByRole("link", { name: "Home" })).toHaveAttribute(
@@ -220,7 +220,7 @@ test.describe("2ページ目以降", () => {
     );
   });
 
-  test("ページ送りをページ間で同じ高さに表示する", async ({ page }) => {
+  test("両ページでページ送りのナビゲーションを表示する", async ({ page }) => {
     const pagination = page.getByRole("navigation", { name: "ページ送り" });
 
     await page.goto("/");
@@ -229,7 +229,7 @@ test.describe("2ページ目以降", () => {
     await expect(pagination).toBeVisible();
   });
 
-  test("空の行を表示せず、一覧の枠も広げない", async ({ page }) => {
+  test("空の行を表示せず、一覧の行数と記事の数を一致させる", async ({ page }) => {
     await page.goto("/page/2");
     const rows = await page.locator(".file-table tbody tr").count();
     const links = await page.locator(".file-link").count();
@@ -390,9 +390,7 @@ test.describe("記事ページの構成", () => {
     for (const selector of selectors) await expect(page.locator(selector)).toHaveCount(1);
   }
 
-  test("見出し画像・タイトル・著者欄・本文・タグ・シェア・執筆者・前後の記事の順に並べる", async ({
-    page,
-  }) => {
+  test("記事ページの要素を1つずつ表示する", async ({ page }) => {
     await page.goto("/posts/pagination-check-01");
     await expectSingleElements(page, [
       ".document-thumbnail",
@@ -590,7 +588,7 @@ test.describe("記事ページの構成", () => {
     await expect(next).toContainText("「アビイ・ロード」を2026年に聴く");
   });
 
-  test("いちばん古い記事は次の記事だけを右の列に表示する", async ({ page }) => {
+  test("いちばん古い記事は前の記事を持たず、次の記事だけを表示する", async ({ page }) => {
     await page.goto("/posts/pagination-check-01");
     const adjacent = page.getByRole("navigation", { name: "前後の記事" });
     await expect(adjacent.locator("a[rel='prev']")).toHaveCount(0);
@@ -602,7 +600,7 @@ test.describe("記事ページの構成", () => {
 test.describe("記事ページのスマートフォン表示", () => {
   test.use({ viewport: { width: 390, height: 844 } });
 
-  test("横にスクロールせず、見出し画像をペインの幅いっぱいに広げる", async ({ page }) => {
+  test("横にスクロールせず、見出し画像をペインの幅に収める", async ({ page }) => {
     await page.goto("/posts/pagination-check-01");
     const overflow = await page.evaluate(
       () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
@@ -728,7 +726,7 @@ test.describe("検索ウィンドウ", () => {
     await expect(page).toHaveURL(/\/posts\/abbey-road$/);
   });
 
-  test("結果が入っても上端の位置を変えず、下に同じ余白を残して広がる", async ({ page }) => {
+  test("1文字を入力した時点で検索結果の状態を表示する", async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 600 });
     await page.goto("/");
     const searchWindow = await openSearchWindow(page);
@@ -736,7 +734,7 @@ test.describe("検索ウィンドウ", () => {
     await expect(searchWindow.getByRole("status")).toContainText("「ア」の検索結果");
   });
 
-  test("背景を右端まで覆い、開いたときにページを横に動かさない", async ({ page }) => {
+  test("背景を右端まで覆う", async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 600 });
     await page.goto("/posts/abbey-road/");
     await openSearchWindow(page);
