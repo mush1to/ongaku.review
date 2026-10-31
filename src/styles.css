@@ -468,10 +468,6 @@ main {
   color: #fff;
 }
 
-.file-table tr.is-selected .file-link img {
-  filter: brightness(0) invert(1);
-}
-
 .file-table tr.is-selected .file-link:focus-visible {
   outline-color: #fff;
 }
