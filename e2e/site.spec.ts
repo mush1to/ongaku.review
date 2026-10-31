@@ -118,6 +118,76 @@ test.describe("タイトルバー", () => {
     });
 });
 
+test.describe("ステータスバー", () => {
+  const statusBar = (page: Page) => page.locator(".window > .status-bar");
+
+  test("一覧の行数を表示し、行にポインタかフォーカスがある間はその記事の詳細を表示する", async ({
+    page,
+  }) => {
+    await page.goto("/");
+    const rows = page.locator(".file-table tbody tr");
+    const rowCount = await rows.count();
+    expect(rowCount).toBeGreaterThan(1);
+    await expect(rows.locator(".file-link")).toHaveCount(rowCount);
+    await expect(statusBar(page).locator(".status-bar-count")).toHaveText(
+      `${rowCount} 個のオブジェクト`,
+    );
+
+    const detail = statusBar(page).locator(".status-bar-detail");
+    const row = rows.filter({ hasText: "アビイ・ロード" });
+    const rowDetail = "「アビイ・ロード」を2026年に聴く　作成日時: 2026/10/25";
+    await expect(detail).toHaveText("ongaku.review");
+    await row.hover();
+    await expect(detail).toHaveText(rowDetail);
+    await page.mouse.move(0, 0);
+    await expect(detail).toHaveText("ongaku.review");
+    await row.getByRole("link").focus();
+    await expect(detail).toHaveText(rowDetail);
+    await row.getByRole("link").blur();
+    await expect(detail).toHaveText("ongaku.review");
+
+    await page.goto("/tags/ロック");
+    await expect(statusBar(page).locator(".status-bar-count")).toHaveText("3 個のオブジェクト");
+  });
+
+  test("記事ページとAboutは1個、404ページは0個のオブジェクトとして表示する", async ({ page }) => {
+    const count = statusBar(page).locator(".status-bar-count");
+    const detail = statusBar(page).locator(".status-bar-detail");
+
+    await page.goto("/posts/abbey-road");
+    await expect(count).toHaveText("1 個のオブジェクト");
+    await expect(detail).toHaveText(
+      "「アビイ・ロード」を2026年に聴く　更新日時: 2026/10/25　読了目安: 約 2 分",
+    );
+
+    await page.goto("/about");
+    await expect(count).toHaveText("1 個のオブジェクト");
+    await expect(detail).toHaveText("About　読了目安: 約 1 分");
+
+    await page.goto("/does-not-exist");
+    await expect(count).toHaveText("0 個のオブジェクト");
+    await expect(detail).toHaveText("ongaku.review");
+  });
+
+  test.describe("スマートフォンで動きを減らす設定", () => {
+    test.use({ viewport: { width: 375, height: 812 }, reducedMotion: "reduce" });
+
+    test("長いページでも画面の下端に表示し、横にはみ出さない", async ({ page }) => {
+      for (const path of ["/", "/posts/abbey-road", "/does-not-exist"]) {
+        await page.goto(path);
+        await expect(statusBar(page), path).toBeInViewport({ ratio: 1 });
+        const box = (await statusBar(page).boundingBox())!;
+        expect(box.x, path).toBeGreaterThanOrEqual(0);
+        expect(box.x + box.width, path).toBeLessThanOrEqual(375);
+        const overflow = await page.evaluate(
+          () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+        );
+        expect(overflow, path).toBe(0);
+      }
+    });
+  });
+});
+
 test.describe("URL", () => {
   test("フラットなHTMLをスラッシュなしで配信し、旧形式をクエリ付きで転送する", async ({
     request,
