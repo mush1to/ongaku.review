@@ -1211,7 +1211,6 @@ body:has(.search-window[open]) .window > .title-bar {
 
 .site-footer {
   margin-top: auto;
-  /* 0.75rem matches .file-link's right padding so the copyright lines up with the last column's text. */
   padding: 0.25rem 0.75rem 0;
   color: #33415c;
   font-size: 0.75rem;
