@@ -83,7 +83,7 @@ test.describe("トップページ", () => {
 
   test("アドレスバーにトップページのパスだけを表示する", async ({ page }) => {
     const address = page.getByRole("navigation", { name: "現在地" });
-    await expect(address.locator("[aria-current='page']")).toHaveText("/");
+    await expect(address.locator("[aria-current='page']")).toHaveText("C:¥");
     await expect(address.getByText("ongaku.review")).toHaveCount(0);
   });
 });
@@ -115,6 +115,8 @@ test.describe("タイトルバー", () => {
       await expect(titleBar.locator(".title-bar-button")).toHaveCount(3);
       await expect(titleBar).toHaveAttribute("aria-hidden", "true");
       await expect(titleBar.locator("a, button")).toHaveCount(0);
+
+      await expect(page.locator(".address-bar .address-root")).toHaveText("C:¥");
     });
 });
 
@@ -212,7 +214,7 @@ test.describe("2ページ目以降", () => {
   test("アドレスバーにページ数を表示しない", async ({ page }) => {
     await page.goto("/page/2");
     const address = page.getByRole("navigation", { name: "現在地" });
-    await expect(address.locator("[aria-current='page']")).toHaveText("/");
+    await expect(address.locator("[aria-current='page']")).toHaveText("C:¥");
     await expect(address.getByText("2ページ目")).toHaveCount(0);
     await expect(mainNavigation(page).getByRole("link", { name: "Home" })).toHaveAttribute(
       "aria-current",
@@ -309,6 +311,7 @@ test.describe("記事ページ", () => {
     await expect(address.locator("[aria-current='page']")).toHaveText(
       "「アビイ・ロード」を2026年に聴く",
     );
+    await expect(address.locator(".address-root")).toHaveText("C:¥");
     await expect(address.getByText("ongaku.review")).toHaveCount(0);
     const home = address.getByRole("link", { name: "ホーム" });
     await expect(home).toHaveAttribute("href", "/");
@@ -348,7 +351,14 @@ test.describe("タグページ", () => {
       "aria-current",
       "true",
     );
-    await expect(page.getByRole("navigation", { name: "現在地" })).toContainText("#ロック");
+    const address = page.getByRole("navigation", { name: "現在地" });
+    await expect(address.locator(".address-root")).toHaveText("C:¥");
+    await expect(address).toContainText("#ロック");
+    const separator = await address
+      .locator("li")
+      .nth(1)
+      .evaluate((element) => getComputedStyle(element, "::before").content);
+    expect(separator).toMatch(/^"\u00a5"(?: \/ "")?$/u);
 
     const list = page.getByRole("table", { name: "タグ「#ロック」の記事" });
     await expect(list.getByRole("columnheader")).toHaveText(["名前", "作成日時"]);
