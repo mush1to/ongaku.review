@@ -2,6 +2,8 @@
 title: 「To Pimp a Butterfly」の構造
 created: 2026-10-19
 icon: music
+tags:
+  - 名盤/聴き直し
 ---
 
 「To Pimp a Butterfly」は2015年に発表されたKendrick Lamarのアルバムです。曲と曲の間が短く、一枚の長い物語のように続きます。今回は、ジャズの演奏と語りが切り替わる場所に注目して聴きました。

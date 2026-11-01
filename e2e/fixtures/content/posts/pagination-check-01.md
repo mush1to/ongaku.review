@@ -3,6 +3,8 @@ title: ページ送り確認用の記事 1
 created: 2026-10-05
 icon: document
 thumbnail: ./img/pagination-check.png
+tags:
+  - 名盤/聴き直し
 ---
 
 記事一覧のページ送りを確認するために追加した短い記事です。一覧の件数が12件を超えると、ページ番号のリンクが表示されます。

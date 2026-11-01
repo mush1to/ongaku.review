@@ -122,6 +122,24 @@ if (searchWindow && searchForm && searchInput) {
   });
 }
 
+const pagination = document.querySelector<HTMLElement>("nav[data-pagination]");
+const pageLinks = pagination?.querySelector<HTMLElement>("[data-pagination-links]");
+const pageSelect = pagination?.querySelector<HTMLSelectElement>("select[data-pagination-page]");
+const pageTotal = pagination?.querySelector<HTMLElement>("[data-pagination-total]");
+if (pageLinks && pageSelect && pageTotal) {
+  const currentPage = [...pageSelect.options].findIndex((option) => option.defaultSelected);
+  // Back and forward restore the last choice during parsing or at pageshow.
+  const showCurrentPage = () => {
+    pageSelect.selectedIndex = currentPage;
+  };
+  showCurrentPage();
+  pageLinks.hidden = true;
+  pageSelect.hidden = false;
+  pageTotal.hidden = false;
+  pageSelect.addEventListener("change", () => location.assign(pageSelect.value));
+  window.addEventListener("pageshow", showCurrentPage);
+}
+
 const copyIcons = {
   idle: '<rect x="9" y="9" width="11" height="11" rx="2"/><path d="M15 9V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h4"/>',
   success: '<path d="m5 12 4 4L19 6"/>',

@@ -1,5 +1,8 @@
 import { expect, test, type Page } from "@playwright/test";
 import { site } from "../src/config/site";
+import { tagRoutePath } from "../src/utils/search-path";
+
+const pagedTag = "名盤/聴き直し";
 
 const mainNavigation = (page: Page) =>
   page.getByRole("navigation", { name: "メインナビゲーション" });
@@ -129,6 +132,7 @@ test.describe("URL", () => {
     expect((await request.get("/about")).status()).toBe(200);
     expect((await request.get("/page/2")).status()).toBe(200);
     expect((await request.get("/tags/ロック")).status()).toBe(200);
+    expect((await request.get(`/tags/${pagedTag}/page/2`)).status()).toBe(200);
 
     for (const [source, target] of [
       ["/about/?q=1", "/about?q=1"],
@@ -137,6 +141,7 @@ test.describe("URL", () => {
       ["/posts/abbey-road/?q=1", "/posts/abbey-road?q=1"],
       ["/tags/ロック/?q=1", `/tags/${encodeURIComponent("ロック")}?q=1`],
       ["/tags/ロック.html?q=1", `/tags/${encodeURIComponent("ロック")}?q=1`],
+      [`/tags/${pagedTag}/page/2/?q=1`, `${tagRoutePath(pagedTag)}/page/2?q=1`],
       ["/index.html?q=1", "/?q=1"],
     ]) {
       const response = await request.get(source, { maxRedirects: 0 });
@@ -242,6 +247,288 @@ test.describe("2ページ目以降", () => {
   });
 });
 
+test.describe("一覧のページ送り", () => {
+  const pagination = (page: Page) => page.getByRole("navigation", { name: "ページ送り" });
+  const pathname = (page: Page) => new URL(page.url()).pathname;
+
+  for (const list of [
+    { name: "トップページ", first: "/", second: "/page/2" },
+    {
+      name: "タグページ",
+      first: tagRoutePath(pagedTag),
+      second: `${tagRoutePath(pagedTag)}/page/2`,
+    },
+  ])
+    test.describe(list.name, () => {
+      test.describe("JavaScriptなし", () => {
+        test.use({ javaScriptEnabled: false });
+
+        test("ページ番号のリンクで各ページへ移動でき、ページ選択を表示しない", async ({ page }) => {
+          await page.goto(list.first);
+          const nav = pagination(page);
+          const previous = nav.getByRole("link", { name: "前へ", exact: true });
+          const next = nav.getByRole("link", { name: "次へ", exact: true });
+          await expect(nav.locator("[data-pagination-page]")).toBeHidden();
+          await expect(nav.locator("[data-pagination-total]")).toBeHidden();
+          await expect(previous).toHaveAttribute("aria-disabled", "true");
+          await expect(previous).not.toHaveAttribute("href");
+          await expect(next).toHaveAttribute("href", list.second);
+          await expect(next).toHaveAttribute("rel", "next");
+          await expect(nav.getByRole("link", { name: "1", exact: true })).toHaveAttribute(
+            "aria-current",
+            "page",
+          );
+
+          await nav.getByRole("link", { name: "2", exact: true }).click();
+          await expect.poll(() => pathname(page)).toBe(list.second);
+          await expect(nav.getByRole("link", { name: "2", exact: true })).toHaveAttribute(
+            "aria-current",
+            "page",
+          );
+          await expect(previous).toHaveAttribute("href", list.first);
+          await expect(previous).toHaveAttribute("rel", "prev");
+          await expect(next).toHaveAttribute("aria-disabled", "true");
+          await expect(next).not.toHaveAttribute("href");
+
+          await nav.getByRole("link", { name: "1", exact: true }).click();
+          await expect.poll(() => pathname(page)).toBe(list.first);
+        });
+
+        test("Tabで無効な前へ・次へに止まらず、ページ番号のリンクを順に移る", async ({ page }) => {
+          const nav = pagination(page);
+          await page.goto(list.first);
+          await page.locator(".file-link").last().focus();
+          for (const name of ["1", "2", "次へ"]) {
+            await page.keyboard.press("Tab");
+            await expect(nav.getByRole("link", { name, exact: true })).toBeFocused();
+          }
+
+          await page.goto(list.second);
+          await page.locator(".file-link").last().focus();
+          for (const name of ["前へ", "1", "2"]) {
+            await page.keyboard.press("Tab");
+            await expect(nav.getByRole("link", { name, exact: true })).toBeFocused();
+          }
+          await page.keyboard.press("Tab");
+          expect(await nav.evaluate((element) => element.contains(document.activeElement))).toBe(
+            false,
+          );
+        });
+      });
+
+      test("ページ選択と総ページ数に切り替え、選んだページへ移動し、戻るとページ選択も戻す", async ({
+        page,
+      }) => {
+        await page.goto(list.first);
+        const nav = pagination(page);
+        const pageSelect = nav.getByRole("combobox", { name: "ページ（全 2 ページ）" });
+        const pageTotal = nav.locator("[data-pagination-total]");
+        const pageLinks = nav.locator("[data-pagination-links]");
+        await expect(pageSelect).toBeVisible();
+        await expect(pageSelect).toHaveValue(list.first);
+        await expect(pageSelect.locator("option")).toHaveText(["1", "2"]);
+        await expect(pageSelect.locator("option:checked")).toHaveText("1");
+        await expect(pageTotal).toBeVisible();
+        await expect(pageTotal).toHaveText("/ 2");
+        await expect(pageTotal).toHaveAttribute("aria-hidden", "true");
+        await expect(pageLinks).toBeHidden();
+        await expect(pageLinks.locator("a[href]")).toHaveCount(2);
+
+        await pageSelect.selectOption({ label: "2" });
+        await expect.poll(() => pathname(page)).toBe(list.second);
+        await expect(pageSelect).toHaveValue(list.second);
+        await expect(pageSelect.locator("option:checked")).toHaveText("2");
+
+        await page.goBack();
+        await expect.poll(() => pathname(page)).toBe(list.first);
+        await expect(pageSelect).toHaveValue(list.first);
+        await expect(pageSelect.locator("option:checked")).toHaveText("1");
+      });
+
+      test("bfcacheから再表示したときもページ選択を現在のページに戻す", async ({ page }) => {
+        await page.goto(list.second);
+        const pageSelect = pagination(page).getByRole("combobox", {
+          name: "ページ（全 2 ページ）",
+        });
+        await pageSelect.evaluate((select: HTMLSelectElement, first) => {
+          select.value = first;
+          window.dispatchEvent(new PageTransitionEvent("pageshow", { persisted: true }));
+        }, list.first);
+        await expect(pageSelect).toHaveValue(list.second);
+      });
+
+      test("Tabで無効な前へ・次へに止まらず、ページ選択と有効な側に移る", async ({ page }) => {
+        const nav = pagination(page);
+        const pageSelect = nav.getByRole("combobox", { name: "ページ（全 2 ページ）" });
+        await page.goto(list.first);
+        await page.locator(".file-link").last().focus();
+        await page.keyboard.press("Tab");
+        await expect(pageSelect).toBeFocused();
+        await page.keyboard.press("Tab");
+        await expect(nav.getByRole("link", { name: "次へ", exact: true })).toBeFocused();
+
+        await page.goto(list.second);
+        await page.locator(".file-link").last().focus();
+        await page.keyboard.press("Tab");
+        await expect(nav.getByRole("link", { name: "前へ", exact: true })).toBeFocused();
+        await page.keyboard.press("Tab");
+        await expect(pageSelect).toBeFocused();
+        await page.keyboard.press("Tab");
+        expect(await nav.evaluate((element) => element.contains(document.activeElement))).toBe(
+          false,
+        );
+      });
+
+      test("前へ・ページ選択・総ページ数・次へを検索ウィンドウのページ送りと同じ見た目にする", async ({
+        page,
+      }) => {
+        const looks = (selector: string) =>
+          page.locator(selector).evaluate((nav) =>
+            [...nav.children]
+              .filter((child) => !(child as HTMLElement).hidden)
+              .map((child) => {
+                const style = getComputedStyle(child);
+                const box = child.getBoundingClientRect();
+                return {
+                  width: box.width,
+                  height: box.height,
+                  ...Object.fromEntries(
+                    [
+                      "color",
+                      "background-color",
+                      "background-image",
+                      "border-top-color",
+                      "border-top-width",
+                      "border-top-left-radius",
+                      "box-shadow",
+                      "font-family",
+                      "font-size",
+                      "font-weight",
+                      "padding-left",
+                      "padding-right",
+                      "cursor",
+                      "text-decoration-line",
+                    ].map((name) => [name, style.getPropertyValue(name)]),
+                  ),
+                };
+              }),
+          );
+        await page.goto(list.first);
+        const listLooks = await looks("nav[data-pagination]");
+        const searchWindow = await openSearchWindow(page);
+        await searchWindow.getByRole("searchbox", { name: "キーワード" }).fill("ア");
+        await expect(searchWindow.getByRole("status")).toHaveText(
+          "「ア」の検索結果：12件（1/2 ページ）",
+        );
+        expect(listLooks).toHaveLength(4);
+        expect(listLooks).toEqual(await looks("[data-search-pagination]"));
+      });
+
+      test("ページ送り行を中央に寄せ、JavaScriptの有無で行の位置と高さを変えない", async ({
+        browser,
+        baseURL,
+      }) => {
+        for (const viewport of [
+          { width: 1280, height: 800 },
+          { width: 375, height: 812 },
+        ]) {
+          const measure = async (javaScriptEnabled: boolean) => {
+            const context = await browser.newContext({ baseURL, viewport, javaScriptEnabled });
+            const page = await context.newPage();
+            await page.goto(list.first);
+            const metrics = await pagination(page).evaluate((element) => {
+              const box = element.getBoundingClientRect();
+              const children = [...element.children].filter(
+                (child) => !(child as HTMLElement).hidden,
+              );
+              const rects = children.map((child) => child.getBoundingClientRect());
+              const centers = rects.map((rect) => rect.top + rect.height / 2);
+              const edge = (rect: DOMRect) => ({ top: rect.top, height: rect.height });
+              return {
+                row: { top: box.top, height: box.height },
+                edges: [edge(rects[0]), edge(rects.at(-1)!)],
+                footerTop: document.querySelector(".site-footer")!.getBoundingClientRect().top,
+                tags: children.map((child) => child.tagName.toLowerCase()),
+                centerDelta:
+                  box.left +
+                  box.width / 2 -
+                  (Math.min(...rects.map((rect) => rect.left)) +
+                    Math.max(...rects.map((rect) => rect.right))) /
+                    2,
+                centerSpread: Math.max(...centers) - Math.min(...centers),
+              };
+            });
+            await context.close();
+            return metrics;
+          };
+          const linksOnly = await measure(false);
+          const enhanced = await measure(true);
+          expect(linksOnly.tags).toEqual(["a", "ul", "a"]);
+          expect(enhanced.tags).toEqual(["a", "select", "span", "a"]);
+          expect(enhanced.row).toEqual(linksOnly.row);
+          expect(enhanced.edges).toEqual(linksOnly.edges);
+          expect(enhanced.footerTop).toBe(linksOnly.footerTop);
+          expect(Math.abs(enhanced.centerDelta)).toBeLessThanOrEqual(1);
+          expect(enhanced.centerSpread).toBeLessThanOrEqual(1);
+        }
+      });
+
+      test("最終ページの件数が少なくても、ページ送りを1ページ目と同じ位置に置く", async ({
+        page,
+      }) => {
+        await page.setViewportSize({ width: 1280, height: 800 });
+        await page.goto(list.first);
+        const top = (await pagination(page).boundingBox())!.y;
+        await page.goto(list.second);
+        await expect(page.locator(".file-link")).toHaveCount(1);
+        expect((await pagination(page).boundingBox())!.y).toBe(top);
+      });
+    });
+
+  test("タグの2ページ目以降を/tags/<タグ>/page/Nで公開し、titleにページ数を付ける", async ({
+    page,
+    request,
+  }) => {
+    const first = tagRoutePath(pagedTag);
+    const heading = page.getByRole("main").getByRole("heading", { level: 1 });
+    const address = page.getByRole("navigation", { name: "現在地" });
+    await page.goto(first);
+    await expect(page).toHaveTitle(`#${pagedTag} | ongaku.review`);
+    await expect(heading).toHaveText(`#${pagedTag}`);
+    await expect(page.locator(".file-link")).toHaveCount(site.postsPerPage);
+    const firstAddress = (await address.textContent())!;
+
+    await page.goto(`${first}/page/2`);
+    expect(decodeURIComponent(pathname(page))).toBe(`/tags/${pagedTag}/page/2`);
+    await expect(page).toHaveTitle(`#${pagedTag}（2ページ目） | ongaku.review`);
+    await expect(heading).toHaveText(`#${pagedTag}（2ページ目）`);
+    await expect(page.locator(".file-link")).toHaveText(["ページ送り確認用の記事 1"]);
+    await expect(page.locator("link[rel='canonical']")).toHaveAttribute(
+      "href",
+      `${site.url}${first}/page/2`,
+    );
+    await expect(address).toHaveText(firstAddress);
+    await expect(address).toContainText(`#${pagedTag}`);
+    await expect(address.getByText("2ページ目")).toHaveCount(0);
+    for (const path of [`${first}/page/1`, `${first}/page/3`])
+      expect((await request.get(path)).status(), path).toBe(404);
+  });
+
+  test("1ページに収まる一覧ではJavaScriptの有無にかかわらずページ送りを出さない", async ({
+    browser,
+    baseURL,
+  }) => {
+    for (const javaScriptEnabled of [false, true]) {
+      const context = await browser.newContext({ baseURL, javaScriptEnabled });
+      const page = await context.newPage();
+      await page.goto("/tags/ジャズ");
+      await expect(page.locator(".file-link")).toHaveCount(1);
+      await expect(pagination(page)).toHaveCount(0);
+      await context.close();
+    }
+  });
+});
+
 test.describe("スマートフォン表示", () => {
   test.use({ viewport: { width: 375, height: 812 } });
 
@@ -342,7 +629,12 @@ test.describe("タグページ", () => {
   test("記事のタグから静的なタグページを開く", async ({ page }) => {
     await page.goto("/posts/abbey-road");
     const tags = page.getByRole("list", { name: "タグ" });
-    await expect(tags.getByRole("link")).toHaveText(["#ロック", "#The Beatles", "#1960年代"]);
+    await expect(tags.getByRole("link")).toHaveText([
+      "#ロック",
+      "#The Beatles",
+      "#1960年代",
+      `#${pagedTag}`,
+    ]);
     await tags.getByRole("link", { name: "#ロック" }).click();
 
     await expect.poll(() => currentPath(page)).toBe("/tags/ロック");
@@ -699,7 +991,7 @@ test.describe("非公開記事", () => {
     expect((await request.get("/posts/unpublished-test")).status()).toBe(404);
     await page.goto("/");
     const paths = await page
-      .locator(".pagination a")
+      .locator(".pagination a[href]")
       .evaluateAll((links) => [...new Set(links.map((link) => link.getAttribute("href")!))]);
     for (const path of new Set(["/", ...paths])) {
       await page.goto(path);
@@ -1216,6 +1508,36 @@ test.describe("サイトマップ", () => {
     expect(Object.values(searchPages).every((entry) => entry.path.startsWith("/posts/"))).toBe(
       true,
     );
+  });
+
+  test("トップとタグページの一覧を2ページ目以降まですべて含める", async ({ request }) => {
+    const [sitemap, searchPages] = await Promise.all([
+      request.get("/sitemap.xml").then((response) => response.text()),
+      request
+        .get("/search-pages.json")
+        .then((response) => response.json() as Promise<Record<string, { tags: string[] }>>),
+    ]);
+    const paths = [...sitemap.matchAll(/<loc>([^<]+)<\/loc>/g)].map(
+      ([, loc]) => new URL(loc).pathname,
+    );
+    const posts = Object.values(searchPages);
+    const tagCounts = new Map<string, number>();
+    for (const path of posts.flatMap((post) => post.tags.map(tagRoutePath)))
+      tagCounts.set(path, (tagCounts.get(path) ?? 0) + 1);
+    const pagesOf = (first: string, count: number) => [
+      first,
+      ...Array.from(
+        { length: Math.ceil(count / site.postsPerPage) - 1 },
+        (_, index) => `${first === "/" ? "" : first}/page/${index + 2}`,
+      ),
+    ];
+    const listPaths = [
+      ...pagesOf("/", posts.length),
+      ...[...tagCounts].flatMap(([first, count]) => pagesOf(first, count)),
+    ];
+    expect(listPaths).toContain("/page/2");
+    expect(listPaths).toContain(`${tagRoutePath(pagedTag)}/page/2`);
+    for (const path of listPaths) expect(paths, path).toContain(path);
   });
 });
 

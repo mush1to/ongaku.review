@@ -2,6 +2,8 @@
 title: 「What's Going On」の声
 created: 2026-10-15
 icon: music
+tags:
+  - 名盤/聴き直し
 ---
 
 「What's Going On」は1971年に発表されたMarvin Gayeのアルバムです。曲と曲の境目が分かりにくく、一枚の長い曲のように続きます。今回は、重なる声とベースの動きを手がかりに聴きました。

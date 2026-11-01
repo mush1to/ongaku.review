@@ -2,6 +2,8 @@
 title: 「Purple Rain」とライブの記憶
 created: 2026-10-16
 icon: cd
+tags:
+  - 名盤/聴き直し
 ---
 
 「Purple Rain」は1984年に発表されたPrince and The Revolutionのアルバムです。同名の映画と合わせて語られることが多く、曲だけを聴くと意外に思うほど、演奏の勢いが前面に出ています。

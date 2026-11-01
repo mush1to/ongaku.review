@@ -20,8 +20,8 @@ import {
 } from "./src/utils/ssg/content";
 import { site } from "./src/config/site";
 import { collectEmbedAssets, embedOptions } from "./src/utils/ssg/embeds";
+import { homePages, tagPages } from "./src/utils/ssg/host";
 import { resolveBuildOutDir } from "./src/utils/ssg/output-dir";
-import { tagRoutePath } from "./src/utils/search-path";
 
 export default defineConfig(async ({ command, mode }) => {
   const root = import.meta.dirname;
@@ -222,15 +222,10 @@ export default defineConfig(async ({ command, mode }) => {
                         : undefined;
                 if (target !== undefined) {
                   const posts = listPosts(await loadDocs(root));
-                  const pageCount = Math.max(1, Math.ceil(posts.length / site.postsPerPage));
                   const pagePaths = new Set([
-                    "/",
                     (await loadAboutPage(root)).path,
                     ...posts.map(({ path }) => path),
-                    ...posts.flatMap(({ tags }) => tags.map(tagRoutePath)),
-                    ...Array.from({ length: pageCount }, (_, index) =>
-                      index === 0 ? "/" : `/page/${index + 1}`,
-                    ),
+                    ...[...homePages(posts), ...tagPages(posts)].map(({ path }) => path),
                   ]);
                   if (pagePaths.has(target)) {
                     response.statusCode = 301;

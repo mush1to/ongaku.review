@@ -6,6 +6,7 @@ tags:
   - ロック
   - The Beatles
   - 1960年代
+  - 名盤/聴き直し
 ---
 
 「Abbey Road」は1969年に発表されたThe Beatlesのアルバムです。学生の頃は「Here Comes the Sun」ばかり聴いていましたが、久しぶりにA面からB面まで通して聴くと、曲順の作り方に引き込まれました。
