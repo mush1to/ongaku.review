@@ -6,6 +6,8 @@
 
   let { page }: { page: PageData } = $props();
 
+  // The address bar reads as a Windows path, so every page starts at drive C.
+  const addressRoot = "C:¥";
   // Posts, tag pages, and later list pages belong to Home.
   const sectionPath = $derived(
     page.kind === "home" || page.kind === "tag" || page.isPost ? "/" : page.path,
@@ -85,7 +87,7 @@
         <img src={icons.folder} alt="" width="24" height="24" />
       </a>
       {#if page.breadcrumbs.length > 0}
-        <span class="address-root" aria-hidden="true">/</span>
+        <span class="address-root" aria-hidden="true">{addressRoot}</span>
         <ol>
           {#each page.breadcrumbs as crumb, index (index)}
             <li>
@@ -98,7 +100,7 @@
           {/each}
         </ol>
       {:else}
-        <span class="address-root" aria-current="page">/</span>
+        <span class="address-root" aria-current="page">{addressRoot}</span>
       {/if}
     </nav>
 
