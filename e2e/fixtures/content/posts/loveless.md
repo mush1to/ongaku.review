@@ -2,6 +2,8 @@
 title: 「Loveless」の音の層
 created: 2026-10-21
 icon: music
+tags:
+  - 名盤/聴き直し
 ---
 
 「Loveless」は1991年に発表されたMy Bloody Valentineのアルバムです。初めて聴いたときは、どの楽器が鳴っているのか分かりませんでした。何度か聴くうちに、ギターの重なりの中から声やリズムが見えてきます。

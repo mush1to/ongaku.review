@@ -14,9 +14,7 @@
   );
   // Reserve the missing rows outside the list frame so pagination stays in place.
   const emptyRowCount = $derived(
-    page.kind === "home" && page.pagination
-      ? Math.max(0, site.postsPerPage - (page.posts?.length ?? 0))
-      : 0,
+    page.pagination ? Math.max(0, site.postsPerPage - (page.posts?.length ?? 0)) : 0,
   );
   const formatDate = (date: string) => date.replaceAll("-", "/");
   const shareUrl = $derived(
@@ -149,15 +147,17 @@
           {/if}
         </div>
         {#if page.pagination}
-          <nav class="pagination" aria-label="ページ送り">
-            <ul>
-              <li>
-                {#if page.pagination.previous}
-                  <a href={page.pagination.previous} rel="prev">&lt; 前へ</a>
-                {:else}
-                  <span aria-disabled="true">&lt; 前へ</span>
-                {/if}
-              </li>
+          <nav class="pagination" aria-label="ページ送り" data-pagination>
+            {#if page.pagination.previous}
+              <a class="xp-button" href={page.pagination.previous} rel="prev">
+                <span aria-hidden="true">&lt;</span> 前へ
+              </a>
+            {:else}
+              <a class="xp-button" role="link" aria-disabled="true">
+                <span aria-hidden="true">&lt;</span> 前へ
+              </a>
+            {/if}
+            <ul class="pagination-links" data-pagination-links>
               {#each page.pagination.pages as item (item.number)}
                 <li>
                   <a
@@ -168,14 +168,31 @@
                   </a>
                 </li>
               {/each}
-              <li>
-                {#if page.pagination.next}
-                  <a href={page.pagination.next} rel="next">次へ &gt;</a>
-                {:else}
-                  <span aria-disabled="true">次へ &gt;</span>
-                {/if}
-              </li>
             </ul>
+            <select
+              class="xp-button pagination-page"
+              aria-label="ページ（全 {page.pagination.pages.length} ページ）"
+              data-pagination-page
+              hidden
+            >
+              {#each page.pagination.pages as item (item.number)}
+                <option value={item.path} selected={item.number === page.pagination.current}>
+                  {item.number}
+                </option>
+              {/each}
+            </select>
+            <span class="pagination-total" aria-hidden="true" data-pagination-total hidden>
+              / {page.pagination.pages.length}
+            </span>
+            {#if page.pagination.next}
+              <a class="xp-button" href={page.pagination.next} rel="next">
+                次へ <span aria-hidden="true">&gt;</span>
+              </a>
+            {:else}
+              <a class="xp-button" role="link" aria-disabled="true">
+                次へ <span aria-hidden="true">&gt;</span>
+              </a>
+            {/if}
           </nav>
         {/if}
       {:else if page.kind === "404"}

@@ -2,6 +2,8 @@
 title: Joni Mitchell「Blue」の距離感
 created: 2026-10-22
 icon: music
+tags:
+  - 名盤/聴き直し
 ---
 
 「Blue」は1971年に発表されたJoni Mitchellのアルバムです。歌詞が強い作品として知られますが、聴くたびに印象が変わるのは、声とギターの距離が曲ごとに違うからだと思います。

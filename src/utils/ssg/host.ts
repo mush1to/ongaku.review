@@ -43,14 +43,15 @@ const notFoundPage: PageData = {
   breadcrumbs: [{ label: "ページが見つかりません" }],
 };
 
-const listPath = (page: number) => (page === 1 ? "/" : `/page/${page}`);
-
-function homePages(posts: readonly DocPage[]): PageData[] {
+/** Splits a list into pages of `site.postsPerPage`; page 1 keeps `firstPath`. */
+function listPages(posts: readonly DocPage[], firstPath: string) {
   const size = site.postsPerPage;
   const count = Math.max(1, Math.ceil(posts.length / size));
+  const pagePath = (page: number) =>
+    page === 1 ? firstPath : `${firstPath.replace(/\/$/, "")}/page/${page}`;
   const pages = Array.from({ length: count }, (_, index) => ({
     number: index + 1,
-    path: listPath(index + 1),
+    path: pagePath(index + 1),
   }));
   return pages.map(({ number, path }) => {
     const pagination: Pagination | undefined =
@@ -58,17 +59,13 @@ function homePages(posts: readonly DocPage[]): PageData[] {
         ? {
             current: number,
             pages,
-            previous: number > 1 ? listPath(number - 1) : undefined,
-            next: number < count ? listPath(number + 1) : undefined,
+            previous: number > 1 ? pagePath(number - 1) : undefined,
+            next: number < count ? pagePath(number + 1) : undefined,
           }
         : undefined;
     return {
-      kind: "home",
+      number,
       path,
-      title: number === 1 ? site.title : `${number}ページ目`,
-      description: site.description,
-      // Pagination is a view of Home, so later list pages keep the same address bar.
-      breadcrumbs: [],
       posts: posts
         .slice((number - 1) * size, number * size)
         .map(({ path, title, created, icon }) => ({ path, title, created, icon })),
@@ -77,7 +74,18 @@ function homePages(posts: readonly DocPage[]): PageData[] {
   });
 }
 
-function tagPages(posts: readonly DocPage[]): PageData[] {
+export function homePages(posts: readonly DocPage[]): PageData[] {
+  return listPages(posts, "/").map(({ number, ...list }) => ({
+    kind: "home",
+    ...list,
+    title: number === 1 ? site.title : `${number}ページ目`,
+    description: site.description,
+    // Pagination is a view of Home, so later list pages keep the same address bar.
+    breadcrumbs: [],
+  }));
+}
+
+export function tagPages(posts: readonly DocPage[]): PageData[] {
   const postsByTag = new Map<string, DocPage[]>();
   for (const post of posts) {
     for (const tag of post.tags) {
@@ -87,15 +95,27 @@ function tagPages(posts: readonly DocPage[]): PageData[] {
       postsByTag.set(key, matches);
     }
   }
-  return [...postsByTag].map(([tag, matches]) => ({
-    kind: "tag",
-    path: tagRoutePath(tag),
-    title: `#${tag}`,
-    description: site.description,
-    breadcrumbs: [{ label: "タグ" }, { label: `#${tag}` }],
-    tag,
-    posts: matches.map(({ path, title, created, icon }) => ({ path, title, created, icon })),
-  }));
+  const pages: PageData[] = [];
+  const tagsByPath = new Map<string, string>();
+  for (const [tag, matches] of postsByTag)
+    for (const { number, ...list } of listPages(matches, tagRoutePath(tag))) {
+      // A tag such as "A/page/2" would take the page of tag "A".
+      const other = tagsByPath.get(list.path);
+      if (other !== undefined)
+        throw new Error(
+          `タグ「#${other}」と「#${tag}」のページが同じURL ${decodeURIComponent(list.path)} になるため、どちらかのタグ名を変更してください`,
+        );
+      tagsByPath.set(list.path, tag);
+      pages.push({
+        kind: "tag",
+        ...list,
+        title: number === 1 ? `#${tag}` : `#${tag}（${number}ページ目）`,
+        description: site.description,
+        breadcrumbs: [{ label: "タグ" }, { label: `#${tag}` }],
+        tag,
+      });
+    }
+  return pages;
 }
 
 const aboutPage = (doc: DocPage): PageData => ({
