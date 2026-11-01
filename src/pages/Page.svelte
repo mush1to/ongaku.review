@@ -351,10 +351,11 @@
         data-search-pagination
         hidden
       >
-        <span class="search-page" aria-hidden="true" data-search-page></span>
         <button class="xp-button" type="button" data-search-previous>
           <span aria-hidden="true">&lt;</span> 前へ
         </button>
+        <select class="xp-button search-page" aria-label="ページ" data-search-page></select>
+        <span class="search-page-total" aria-hidden="true" data-search-page-total></span>
         <button class="xp-button" type="button" data-search-next>
           次へ <span aria-hidden="true">&gt;</span>
         </button>

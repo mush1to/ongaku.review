@@ -65,7 +65,8 @@ export function initSearch(form: HTMLFormElement) {
   const status = document.querySelector<HTMLElement>("[data-search-status]");
   const list = document.querySelector<HTMLElement>("[data-search-results]");
   const pagination = document.querySelector<HTMLElement>("[data-search-pagination]");
-  const pageLabel = pagination?.querySelector<HTMLElement>("[data-search-page]");
+  const pageSelect = pagination?.querySelector<HTMLSelectElement>("[data-search-page]");
+  const pageTotal = pagination?.querySelector<HTMLElement>("[data-search-page-total]");
   const previous = pagination?.querySelector<HTMLButtonElement>("[data-search-previous]");
   const next = pagination?.querySelector<HTMLButtonElement>("[data-search-next]");
   if (
@@ -74,7 +75,8 @@ export function initSearch(form: HTMLFormElement) {
     !status ||
     !list ||
     !pagination ||
-    !pageLabel ||
+    !pageSelect ||
+    !pageTotal ||
     !previous ||
     !next
   )
@@ -97,7 +99,19 @@ export function initSearch(form: HTMLFormElement) {
     status.textContent = paginated ? `${summary}（${current + 1}/${pageCount} ページ）` : summary;
     pagination.hidden = !paginated;
     searchWindow.toggleAttribute("data-paginated", paginated);
-    pageLabel.textContent = `${current + 1} / ${pageCount}`;
+    if (pageSelect.options.length !== pageCount) {
+      pageSelect.replaceChildren(
+        ...Array.from({ length: pageCount }, (_, index) => {
+          const option = document.createElement("option");
+          option.value = String(index + 1);
+          option.textContent = String(index + 1);
+          return option;
+        }),
+      );
+    }
+    pageSelect.value = String(current + 1);
+    pageSelect.setAttribute("aria-label", `ページ（全 ${pageCount} ページ）`);
+    pageTotal.textContent = `/ ${pageCount}`;
     previous.setAttribute("aria-disabled", String(current === 0));
     next.setAttribute("aria-disabled", String(current >= pageCount - 1));
   };
@@ -110,8 +124,7 @@ export function initSearch(form: HTMLFormElement) {
     render();
   };
 
-  const turnPage = (step: number) => {
-    const target = current + step;
+  const goTo = (target: number) => {
     if (target < 0 || target * perPage >= results.length) return;
     current = target;
     render();
@@ -175,8 +188,12 @@ export function initSearch(form: HTMLFormElement) {
     }
   };
 
-  previous.addEventListener("click", () => turnPage(-1));
-  next.addEventListener("click", () => turnPage(1));
+  previous.addEventListener("click", () => goTo(current - 1));
+  next.addEventListener("click", () => goTo(current + 1));
+  pageSelect.addEventListener("change", () => {
+    const target = Number(pageSelect.value);
+    if (Number.isInteger(target)) goTo(target - 1);
+  });
   list.addEventListener("focusin", ({ target }) => {
     if (!(target instanceof HTMLElement) || !target.matches(":focus-visible")) return;
     const card = target.closest("li")?.getBoundingClientRect();

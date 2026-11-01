@@ -942,8 +942,15 @@ test.describe("検索ウィンドウ", () => {
     const pagination = searchWindow.getByRole("navigation", { name: "検索結果のページ送り" });
     const previous = pagination.getByRole("button", { name: "前へ", exact: true });
     const next = pagination.getByRole("button", { name: "次へ", exact: true });
+    const pageSelect = pagination.getByRole("combobox", { name: "ページ" });
+    const pageTotal = pagination.locator("[data-search-page-total]");
     await expect(previous).toHaveAttribute("aria-disabled", "true");
     await expect(next).toHaveAttribute("aria-disabled", "false");
+    await expect(pageSelect).toHaveValue("1");
+    await expect(pageSelect.locator("option")).toHaveCount(2);
+    await expect(pageSelect.locator("option:checked")).toHaveText("1");
+    await expect(pageSelect).toHaveAttribute("aria-label", "ページ（全 2 ページ）");
+    await expect(pageTotal).toHaveText("/ 2");
     const windowBox = (await searchWindow.boundingBox())!;
     const pagePaths = () => links.evaluateAll((items) => items.map((a) => a.getAttribute("href")));
     const firstPage = await pagePaths();
@@ -951,6 +958,9 @@ test.describe("検索ウィンドウ", () => {
     await next.click();
     await expect(status).toHaveText("「ア」の検索結果：12件（2/2 ページ）");
     await expect(next).toBeFocused();
+    await expect(pageSelect).toHaveValue("2");
+    await expect(pageSelect.locator("option:checked")).toHaveText("2");
+    await expect(pageTotal).toHaveText("/ 2");
     await expect(links).toHaveCount(2);
     expect(new Set([...firstPage, ...(await pagePaths())]).size).toBe(12);
     await expect(previous).toHaveAttribute("aria-disabled", "false");
@@ -961,10 +971,104 @@ test.describe("検索ウィンドウ", () => {
     await expect(status).toHaveText("「ア」の検索結果：12件（2/2 ページ）");
     await expect(next).toBeFocused();
     await page.keyboard.press("Shift+Tab");
+    await expect(pageSelect).toBeFocused();
+    await page.keyboard.press("Shift+Tab");
     await expect(previous).toBeFocused();
     await page.keyboard.press("Enter");
     await expect(status).toHaveText("「ア」の検索結果：12件（1/2 ページ）");
     await expect(previous).toBeFocused();
+
+    await searchWindow.locator("[data-search-results]").evaluate((list: HTMLElement) => {
+      list.scrollTop = 40;
+    });
+    await pageSelect.selectOption("2");
+    await expect(status).toHaveText("「ア」の検索結果：12件（2/2 ページ）");
+    await expect(links).toHaveCount(2);
+    await expect(pageSelect).toHaveValue("2");
+    expect(
+      await searchWindow.locator("[data-search-results]").evaluate((list) => list.scrollTop),
+    ).toBe(0);
+    await expect(previous).toHaveAttribute("aria-disabled", "false");
+    await expect(next).toHaveAttribute("aria-disabled", "true");
+    expect(await searchWindow.boundingBox()).toEqual(windowBox);
+
+    await pageSelect.selectOption("1");
+    await expect(status).toHaveText("「ア」の検索結果：12件（1/2 ページ）");
+    await expect(links).toHaveCount(10);
+    await expect(pageSelect).toHaveValue("1");
+    await expect(previous).toHaveAttribute("aria-disabled", "true");
+    await expect(next).toHaveAttribute("aria-disabled", "false");
+    expect(await searchWindow.boundingBox()).toEqual(windowBox);
+  });
+
+  test("Tabの順序を入力・検索・結果・前へ・ページ選択・次へにする", async ({ page }) => {
+    await page.goto("/");
+    const searchWindow = await openSearchWindow(page);
+    const searchbox = searchWindow.getByRole("searchbox", { name: "キーワード" });
+    const status = searchWindow.getByRole("status");
+    const pagination = searchWindow.getByRole("navigation", { name: "検索結果のページ送り" });
+    const previous = pagination.getByRole("button", { name: "前へ", exact: true });
+    const pageSelect = pagination.getByRole("combobox", { name: "ページ" });
+    const next = pagination.getByRole("button", { name: "次へ", exact: true });
+    await searchbox.fill("ア");
+    await expect(status).toHaveText("「ア」の検索結果：12件（1/2 ページ）");
+    await next.click();
+    await expect(status).toHaveText("「ア」の検索結果：12件（2/2 ページ）");
+
+    await searchbox.click();
+    await expect(searchbox).toBeFocused();
+    const links = searchWindow.locator("[data-search-results] .file-link");
+    await expect(links).toHaveCount(2);
+    await page.keyboard.press("Tab");
+    await expect(searchWindow.getByRole("button", { name: "検索", exact: true })).toBeFocused();
+    for (let index = 0; index < 2; index++) {
+      await page.keyboard.press("Tab");
+      await expect(links.nth(index)).toBeFocused();
+    }
+    await page.keyboard.press("Tab");
+    await expect(previous).toBeFocused();
+    await page.keyboard.press("Tab");
+    await expect(pageSelect).toBeFocused();
+    await page.keyboard.press("Tab");
+    await expect(next).toBeFocused();
+  });
+
+  test("ページ送り行を中央に寄せ、前へ・ページ選択・次へを1行に並べる", async ({ page }) => {
+    await page.setViewportSize({ width: 375, height: 812 });
+    await page.goto("/");
+    const searchWindow = await openSearchWindow(page);
+    await searchWindow.getByRole("searchbox", { name: "キーワード" }).fill("ア");
+    await expect(searchWindow.getByRole("status")).toHaveText(
+      "「ア」の検索結果：12件（1/2 ページ）",
+    );
+    const row = searchWindow.getByRole("navigation", { name: "検索結果のページ送り" });
+    const metrics = await row.evaluate((element) => {
+      const box = element.getBoundingClientRect();
+      const rects = [...element.children].map((child) => child.getBoundingClientRect());
+      const items = [...element.children].map((child, index) => ({
+        tag: child.tagName.toLowerCase(),
+        top: Math.round(rects[index].top),
+        height: Math.round(rects[index].height),
+      }));
+      const centers = items.map((item) => item.top + item.height / 2);
+      return {
+        centerDelta:
+          box.left +
+          box.width / 2 -
+          (Math.min(...rects.map((rect) => rect.left)) +
+            Math.max(...rects.map((rect) => rect.right))) /
+            2,
+        rowHeight: Math.round(box.height),
+        centerSpread: Math.max(...centers) - Math.min(...centers),
+        items,
+      };
+    });
+    expect(Math.abs(metrics.centerDelta)).toBeLessThanOrEqual(1);
+    expect(metrics.items.map((item) => item.tag)).toEqual(["button", "select", "span", "button"]);
+    expect(metrics.centerSpread).toBeLessThanOrEqual(1);
+    const controls = metrics.items.filter((item) => item.tag !== "span");
+    expect(new Set(controls.map((item) => item.height)).size).toBe(1);
+    expect(metrics.rowHeight).toBe(controls[0].height);
   });
 
   test("新しい検索では1ページ目に戻り、1ページに収まる結果ではページ送りを隠す", async ({
@@ -974,17 +1078,25 @@ test.describe("検索ウィンドウ", () => {
     const searchWindow = await openSearchWindow(page);
     const searchbox = searchWindow.getByRole("searchbox", { name: "キーワード" });
     const status = searchWindow.getByRole("status");
-    const pagination = searchWindow.getByRole("navigation", { name: "検索結果のページ送り" });
+    const pagination = searchWindow.locator("[data-search-pagination]");
+    const pageSelect = pagination.locator("[data-search-page]");
+    const pageTotal = pagination.locator("[data-search-page-total]");
     await searchbox.fill("ア");
     await pagination.getByRole("button", { name: "次へ", exact: true }).click();
     await expect(status).toHaveText("「ア」の検索結果：12件（2/2 ページ）");
+    await expect(pageSelect).toHaveValue("2");
 
     await searchbox.fill("Radiohead");
     await expect(status).toHaveText("「Radiohead」の検索結果：2件");
     await expect(pagination).toBeHidden();
+    await expect(pageSelect).toHaveAttribute("aria-label", "ページ（全 1 ページ）");
+    await expect(pageSelect).toHaveValue("1");
+    await expect(pageTotal).toHaveText("/ 1");
     await searchbox.fill("ア");
     await expect(status).toHaveText("「ア」の検索結果：12件（1/2 ページ）");
     await expect(pagination).toBeVisible();
+    await expect(pageSelect).toHaveAttribute("aria-label", "ページ（全 2 ページ）");
+    await expect(pageTotal).toHaveText("/ 2");
     await searchbox.fill("雨");
     await expect(status).toHaveText("「雨」に一致するページは見つかりませんでした。");
     await expect(pagination).toBeHidden();
