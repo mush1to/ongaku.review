@@ -345,6 +345,20 @@
       </form>
       <p class="search-status" role="status" data-search-status></p>
       <ul class="file-list search-results" data-search-results></ul>
+      <nav
+        class="search-pagination"
+        aria-label="検索結果のページ送り"
+        data-search-pagination
+        hidden
+      >
+        <span class="search-page" aria-hidden="true" data-search-page></span>
+        <button class="xp-button" type="button" data-search-previous>
+          <span aria-hidden="true">&lt;</span> 前へ
+        </button>
+        <button class="xp-button" type="button" data-search-next>
+          次へ <span aria-hidden="true">&gt;</span>
+        </button>
+      </nav>
     </div>
   </div>
 </dialog>

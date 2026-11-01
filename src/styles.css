@@ -414,7 +414,8 @@ main {
 }
 
 .pagination[hidden],
-.pane-spacer[hidden] {
+.pane-spacer[hidden],
+.search-pagination[hidden] {
   display: none;
 }
 
@@ -636,6 +637,14 @@ main {
   background: linear-gradient(180deg, #cdcac3 0%, #e3e2da 8%, #f2f1ec 92%);
 }
 
+.xp-button[aria-disabled="true"] {
+  border-color: #c9c7ba;
+  background: #f5f4ea;
+  color: #aca899;
+  box-shadow: none;
+  cursor: default;
+}
+
 .search-status {
   margin: 0.5rem 0 0;
   color: var(--color-muted);
@@ -650,6 +659,7 @@ main {
   margin: 0.625rem 0 0;
   overflow-y: auto;
   overscroll-behavior: contain;
+  scrollbar-gutter: stable;
   border: 1px solid var(--xp-pane-border);
   border-radius: 0.25rem;
   background: #fff;
@@ -658,6 +668,21 @@ main {
 
 .search-results:empty {
   display: none;
+}
+
+.search-pagination {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 0.625rem;
+}
+
+.search-page {
+  margin-right: 0.25rem;
+  color: var(--color-muted);
+  font-variant-numeric: tabular-nums;
 }
 
 /* Keep the top gap, and leave the same gap at the bottom once the window is full. */
@@ -677,6 +702,14 @@ main {
 .search-window[open] {
   display: flex;
   flex-direction: column;
+}
+
+.search-window[data-paginated] {
+  height: calc(100% - 2 * var(--search-window-gap));
+}
+
+.search-window[data-paginated] :is(.search-window-frame, .search-window-body, .search-results) {
+  flex: 1;
 }
 
 .search-window::backdrop {
