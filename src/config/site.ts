@@ -20,5 +20,6 @@ export const site = {
   themeStorageKey: "ongaku.review.theme",
   themeColor: "#0b55e0",
   postsPerPage: 12,
+  searchResultsPerPage: 10,
   navigation,
 };

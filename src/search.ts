@@ -1,4 +1,5 @@
 import { search } from "virtual:ox-content/search";
+import { site } from "./config/site";
 import { defaultPostIcon, icons, isPostIcon } from "./config/icons";
 import { normalizeSearchPath, normalizeTag } from "./utils/search-path";
 
@@ -60,19 +61,80 @@ function tagResults(tag: string, pagesByIndexPath: Record<string, unknown>): Res
 
 export function initSearch(form: HTMLFormElement) {
   const input = form.elements.namedItem("q");
+  const searchWindow = form.closest<HTMLElement>("[data-search-window]");
   const status = document.querySelector<HTMLElement>("[data-search-status]");
   const list = document.querySelector<HTMLElement>("[data-search-results]");
-  if (!(input instanceof HTMLInputElement) || !status || !list) return;
+  const pagination = document.querySelector<HTMLElement>("[data-search-pagination]");
+  const pageSelect = pagination?.querySelector<HTMLSelectElement>("[data-search-page]");
+  const pageTotal = pagination?.querySelector<HTMLElement>("[data-search-page-total]");
+  const previous = pagination?.querySelector<HTMLButtonElement>("[data-search-previous]");
+  const next = pagination?.querySelector<HTMLButtonElement>("[data-search-next]");
+  if (
+    !(input instanceof HTMLInputElement) ||
+    !searchWindow ||
+    !status ||
+    !list ||
+    !pagination ||
+    !pageSelect ||
+    !pageTotal ||
+    !previous ||
+    !next
+  )
+    return;
   let pages: Promise<Record<string, unknown>> | undefined;
   let latest = 0;
   let timer: ReturnType<typeof setTimeout> | undefined;
+  let results: ResultItem[] = [];
+  let summary = "";
+  let perPage = 1;
+  let current = 0;
+
+  const render = () => {
+    const pageCount = Math.ceil(results.length / perPage);
+    const paginated = pageCount > 1;
+    list.replaceChildren(
+      ...results.slice(current * perPage, (current + 1) * perPage).map(resultItem),
+    );
+    list.scrollTop = 0;
+    status.textContent = paginated ? `${summary}（${current + 1}/${pageCount} ページ）` : summary;
+    pagination.hidden = !paginated;
+    searchWindow.toggleAttribute("data-paginated", paginated);
+    if (pageSelect.options.length !== pageCount) {
+      pageSelect.replaceChildren(
+        ...Array.from({ length: pageCount }, (_, index) => {
+          const option = document.createElement("option");
+          option.value = String(index + 1);
+          option.textContent = String(index + 1);
+          return option;
+        }),
+      );
+    }
+    pageSelect.value = String(current + 1);
+    pageSelect.setAttribute("aria-label", `ページ（全 ${pageCount} ページ）`);
+    pageTotal.textContent = `/ ${pageCount}`;
+    previous.setAttribute("aria-disabled", String(current === 0));
+    next.setAttribute("aria-disabled", String(current >= pageCount - 1));
+  };
+
+  const show = (items: ResultItem[], text: string, pageSize = Math.max(items.length, 1)) => {
+    results = items;
+    summary = text;
+    perPage = pageSize;
+    current = 0;
+    render();
+  };
+
+  const goTo = (target: number) => {
+    if (target < 0 || target * perPage >= results.length) return;
+    current = target;
+    render();
+  };
 
   const run = async (query: string) => {
     const request = ++latest;
     const keyword = query.trim();
     if (!keyword) {
-      list.replaceChildren();
-      status.textContent = "";
+      show([], "");
       return;
     }
     const tag = /^[#＃]/.test(keyword) ? keyword.replace(/^[#＃]+/, "").trim() : undefined;
@@ -89,38 +151,58 @@ export function initSearch(form: HTMLFormElement) {
         pages = retryable;
       }
       if (tag) {
-        const results = tagResults(tag, await pages);
+        const items = tagResults(tag, await pages);
         if (request !== latest) return;
-        list.replaceChildren(...results.map(resultItem));
-        status.textContent = results.length
-          ? `タグ「#${tag}」の記事：${results.length}件`
-          : `タグ「#${tag}」の記事は見つかりませんでした。`;
+        show(
+          items,
+          items.length
+            ? `タグ「#${tag}」の記事：${items.length}件`
+            : `タグ「#${tag}」の記事は見つかりませんでした。`,
+        );
         return;
       }
-      const [results, pagesByIndexPath] = await Promise.all([search(keyword), pages]);
+      const [hits, pagesByIndexPath] = await Promise.all([
+        search(keyword, { limit: Number.POSITIVE_INFINITY }),
+        pages,
+      ]);
       if (request !== latest) return;
-      list.replaceChildren(
-        ...results.map((result) => {
+      show(
+        hits.map((result) => {
           const indexPath = normalizeSearchPath(result.url);
           const entry = pageEntry(pagesByIndexPath[indexPath]);
-          return resultItem({
+          return {
             path: typeof entry?.path === "string" ? entry.path : indexPath,
             title: result.title,
             icon: entry?.icon,
             snippet: result.snippet,
-          });
+          };
         }),
+        hits.length
+          ? `「${keyword}」の検索結果：${hits.length}件`
+          : `「${keyword}」に一致するページは見つかりませんでした。`,
+        site.searchResultsPerPage,
       );
-      status.textContent = results.length
-        ? `「${keyword}」の検索結果：${results.length}件`
-        : `「${keyword}」に一致するページは見つかりませんでした。`;
     } catch {
       if (request !== latest) return;
-      list.replaceChildren();
-      status.textContent = "検索できませんでした。時間をおいてもう一度お試しください。";
+      show([], "検索できませんでした。時間をおいてもう一度お試しください。");
     }
   };
 
+  previous.addEventListener("click", () => goTo(current - 1));
+  next.addEventListener("click", () => goTo(current + 1));
+  pageSelect.addEventListener("change", () => {
+    const target = Number(pageSelect.value);
+    if (Number.isInteger(target)) goTo(target - 1);
+  });
+  list.addEventListener("focusin", ({ target }) => {
+    if (!(target instanceof HTMLElement) || !target.matches(":focus-visible")) return;
+    const card = target.closest("li")?.getBoundingClientRect();
+    if (!card) return;
+    const top = card.top - list.getBoundingClientRect().top - list.clientTop + list.scrollTop;
+    if (top < list.scrollTop || card.height > list.clientHeight) list.scrollTop = Math.floor(top);
+    else if (top + card.height > list.scrollTop + list.clientHeight)
+      list.scrollTop = Math.ceil(top + card.height - list.clientHeight);
+  });
   form.addEventListener("submit", (event) => {
     event.preventDefault();
     clearTimeout(timer);
