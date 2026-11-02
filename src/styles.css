@@ -27,10 +27,11 @@
   --color-rule: #e3e9f3;
   --color-code-bg: #f2f5fa;
   --font-ui:
-    Tahoma, Verdana, "Segoe UI", "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Noto Sans JP",
+    "Noto Sans JP", "Noto Sans CJK JP", "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic",
     Meiryo, sans-serif;
   --font-title:
-    "Trebuchet MS", "Segoe UI", Tahoma, "Hiragino Sans", "Noto Sans JP", Meiryo, sans-serif;
+    "Trebuchet MS", "Noto Sans JP", "Noto Sans CJK JP", "Hiragino Sans",
+    "Hiragino Kaku Gothic ProN", "Yu Gothic", Meiryo, sans-serif;
   --font-mono: Consolas, "SFMono-Regular", Menlo, "Courier New", monospace;
   --octc-color-text: var(--color-text);
   --octc-color-text-muted: var(--color-muted);
