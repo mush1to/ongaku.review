@@ -215,7 +215,7 @@ img {
   align-items: center;
   justify-content: space-between;
   gap: 0.5rem 0.75rem;
-  padding: 0.25rem 0.5rem 0.625rem;
+  padding: 0.375rem 0.5rem;
   color: #fff;
 }
 
@@ -242,13 +242,6 @@ img {
 
 .site-title a:hover {
   text-decoration: underline;
-}
-
-.site-description {
-  margin: 0.25rem 0 0;
-  font-size: 0.875rem;
-  line-height: 1.4;
-  text-shadow: 1px 1px 1px rgb(0 0 0 / 0.35);
 }
 
 .main-nav {
@@ -1302,11 +1295,7 @@ body:has(.search-window[open]) .window > .title-bar {
   }
 
   .window-header {
-    padding: 0.5rem 1rem 1rem;
-  }
-
-  .site-description {
-    font-size: 1rem;
+    padding: 0.5rem 1rem;
   }
 
   .main-nav ul {
