@@ -19,12 +19,12 @@ test.describe("トップページ", () => {
     await page.goto("/");
   });
 
-  test("サイト名と説明を表示する", async ({ page }) => {
+  test("サイト名を表示し、説明文を表示しない", async ({ page }) => {
     await expect(page).toHaveTitle("ongaku.review");
     const title = page.getByRole("heading", { level: 1, name: "ongaku.review" });
     await expect(title).toBeVisible();
     await expect(title.getByRole("link", { name: "ongaku.review" })).toHaveAttribute("href", "/");
-    await expect(page.getByText("音楽が好き。", { exact: true })).toBeVisible();
+    await expect(page.getByText(site.description, { exact: true })).toHaveCount(0);
     await expect(page.locator('link[rel="canonical"]')).toHaveAttribute(
       "href",
       "https://ongaku.review",

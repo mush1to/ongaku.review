@@ -50,7 +50,6 @@
       {:else}
         <p class="site-title"><a href="/">{site.title}</a></p>
       {/if}
-      <p class="site-description">{site.description}</p>
     </div>
     <nav class="main-nav" aria-label="メインナビゲーション">
       <ul>
