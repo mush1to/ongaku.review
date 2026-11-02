@@ -123,7 +123,8 @@ const aboutPage = (doc: DocPage): PageData => ({
   path: doc.path,
   title: doc.title,
   description: doc.description,
-  breadcrumbs: [{ label: doc.title }],
+  // The address bar presents a document page as a file name.
+  breadcrumbs: [{ label: `${doc.title}.html` }],
   created: doc.created,
   updated: doc.updated,
   isPost: false,
