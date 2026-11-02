@@ -597,7 +597,7 @@ test.describe("記事ページ", () => {
 
     const address = page.getByRole("navigation", { name: "現在地" });
     await expect(address.locator("[aria-current='page']")).toHaveText(
-      "「アビイ・ロード」を2026年に聴く",
+      "「アビイ・ロード」を2026年に聴く.html",
     );
     await expect(address.locator(".address-root")).toHaveText("C:¥");
     await expect(address.getByText("ongaku.review")).toHaveCount(0);
@@ -976,6 +976,9 @@ test.describe("Aboutページ", () => {
     await expect(page.getByRole("heading", { level: 1, name: "About" })).toBeVisible();
     await expect(page.locator(".prose")).toContainText("音楽について書くブログです。");
     await expect(page.locator(".document-date")).toHaveCount(0);
+    await expect(
+      page.getByRole("navigation", { name: "現在地" }).locator("[aria-current='page']"),
+    ).toHaveText("About.html");
     await expect(mainNavigation(page).getByRole("link", { name: "Home" })).not.toHaveAttribute(
       "aria-current",
     );
