@@ -15,10 +15,11 @@ on:
       - synchronize
       - reopened
 
-# 同じブランチで新しい実行が始まったら、古い実行をキャンセルする。
+# PR は、同じブランチで新しい実行が始まったら古い実行をキャンセルする。
+# main は、実行中の本番配信を止めないためキャンセルしない。
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 # リポジトリの読み取りだけを許可する。
 permissions:
@@ -109,3 +110,101 @@ jobs:
             test-results/
           retention-days: 7
           if-no-files-found: ignore
+
+  # 以下の2つの deploy ジョブは、リポジトリ変数 PAGES_DEPLOY_ENABLED が 'true' のときだけ動く。
+  # 未登録または 'true' 以外のときはスキップされ、何も配信しない。
+  # どちらも lint・check・test・e2e がすべて成功した後にだけ実行する。
+  # Cloudflare Pages は Git 連携を使わず、ここから wrangler で直接アップロードする。
+  deploy-production:
+    name: Deploy to Cloudflare Pages (production)
+    needs:
+      - lint
+      - check
+      - test
+      - e2e
+    if: github.event_name == 'push' && vars.PAGES_DEPLOY_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # 本番の配信は直列にし、実行中のデプロイは途中でキャンセルしない。
+    concurrency:
+      group: deploy-production
+      cancel-in-progress: false
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: .node-version
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Build
+        # partial clone 環境で無出力のまま止まるのを避ける。
+        env:
+          GIT_NO_LAZY_FETCH: "1"
+        run: npm run build
+      - name: Deploy to production
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_PAGES_PROJECT_NAME: ${{ vars.CLOUDFLARE_PAGES_PROJECT_NAME }}
+          WRANGLER_SEND_METRICS: "false"
+        run: npx --yes wrangler@4.157.0 pages deploy dist --project-name="$CLOUDFLARE_PAGES_PROJECT_NAME" --branch=main
+
+  deploy-preview:
+    name: Deploy to Cloudflare Pages (preview)
+    needs:
+      - lint
+      - check
+      - test
+      - e2e
+    # フォークからの PR と Dependabot の PR には Secrets が渡らないため、配信しない。
+    if: >-
+      github.event_name == 'pull_request'
+      && vars.PAGES_DEPLOY_ENABLED == 'true'
+      && github.event.pull_request.head.repo.full_name == github.repository
+      && github.actor != 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # 同じ PR に新しい push があったら、古いプレビューの配信はキャンセルする。
+    concurrency:
+      group: deploy-preview-${{ github.head_ref }}
+      cancel-in-progress: true
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: .node-version
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Build
+        # partial clone 環境で無出力のまま止まるのを避ける。
+        env:
+          GIT_NO_LAZY_FETCH: "1"
+        run: npm run build
+      - name: Deploy preview
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_PAGES_PROJECT_NAME: ${{ vars.CLOUDFLARE_PAGES_PROJECT_NAME }}
+          # ブランチ名はシェルに直接埋め込まず、環境変数として渡す。
+          HEAD_REF: ${{ github.head_ref }}
+          WRANGLER_SEND_METRICS: "false"
+        run: |
+          export WRANGLER_OUTPUT_FILE_PATH="$RUNNER_TEMP/wrangler-output.json"
+          npx --yes wrangler@4.157.0 pages deploy dist --project-name="$CLOUDFLARE_PAGES_PROJECT_NAME" --branch="$HEAD_REF"
+      - name: Write preview URLs to job summary
+        # PR へのコメントは投稿しない。URL はジョブのサマリーだけに書く。
+        run: |
+          {
+            echo "### Cloudflare Pages プレビュー"
+            jq -r 'select(.type == "pages-deploy-detailed") | "- ブランチ別URL: " + (.alias // "なし"), "- このコミットのURL: " + .url' "$RUNNER_TEMP/wrangler-output.json"
+          } >> "$GITHUB_STEP_SUMMARY"

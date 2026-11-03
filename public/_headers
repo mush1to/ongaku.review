@@ -1,0 +1,20 @@
+# Cloudflare Pagesが配信時に付けるHTTPヘッダ。ビルド時に dist/_headers へそのままコピーされる。
+# https://developers.cloudflare.com/pages/configuration/headers/
+# Content-Security-Policyの許可先は、実際に生成したHTMLが参照するオリジンだけにしている。
+# 埋め込みを追加・変更したときは、README「デプロイ」の「セキュリティヘッダ」の手順でCSPの違反を確認すること。
+
+/*
+  Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; frame-src https://www.youtube-nocookie.com https://open.spotify.com https://embed.music.apple.com; connect-src 'self'; font-src 'self'; base-uri 'self'; form-action 'self'; object-src 'none'; frame-ancestors 'none'; upgrade-insecure-requests
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: geolocation=(), microphone=(), camera=()
+  Strict-Transport-Security: max-age=31536000
+
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable
+
+/feed.xml
+  Cache-Control: public, max-age=3600
+
+/sitemap.xml
+  Cache-Control: public, max-age=3600
