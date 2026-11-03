@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
+import { chmod, mkdir, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import type { Plugin } from "vite";
@@ -74,5 +74,22 @@ describe("embedMediaPlugin", () => {
     await build(embedMediaPlugin(siteRoot), path.join(siteRoot, "dist"));
 
     await expect(readdir(path.join(siteRoot, "dist"))).rejects.toMatchObject({ code: "ENOENT" });
+  });
+
+  it.skipIf(process.getuid?.() === 0)("rethrows a directory it cannot read", async () => {
+    const siteRoot = await root();
+    const media = path.join(siteRoot, "public/embeds/twitter/media");
+    await mkdir(media, { recursive: true });
+    await chmod(media, 0o000);
+
+    try {
+      await expect(
+        build(embedMediaPlugin(siteRoot), path.join(siteRoot, "dist")),
+      ).rejects.toMatchObject({
+        code: "EACCES",
+      });
+    } finally {
+      await chmod(media, 0o755);
+    }
   });
 });

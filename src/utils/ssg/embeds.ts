@@ -32,6 +32,15 @@ export function embedOptions(root: string) {
   } satisfies Pick<OxContentOptions, "embeds">;
 }
 
+async function mediaFiles(directory: string) {
+  try {
+    return (await readdir(directory, { withFileTypes: true })).filter((entry) => entry.isFile());
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return [];
+    throw error;
+  }
+}
+
 /** Fetched media is written while pages render, after Vite has already copied public. */
 export function embedMediaPlugin(root: string): Plugin {
   let outputDirectory: string | undefined;
@@ -47,9 +56,7 @@ export function embedMediaPlugin(root: string): Plugin {
       async handler() {
         if (!outputDirectory) return;
         const media = embedMediaDirectory(root);
-        const files = (await readdir(media, { withFileTypes: true }).catch(() => [])).filter(
-          (entry) => entry.isFile(),
-        );
+        const files = await mediaFiles(media);
         if (!files.length) return;
         const target = path.join(outputDirectory, "embeds/twitter/media");
         await mkdir(target, { recursive: true });
