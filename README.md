@@ -51,6 +51,8 @@ npm run preview
 
 E2Eテストは`dist-e2e/`へビルドし、その出力を`http://127.0.0.1:4173`で確認する。通常の`npm run build`が作る`dist/`は書き換えないため、E2Eテストを実行した後も`npm run preview`で確認できるのは通常のビルド結果のままになる。
 
+CIのE2Eジョブは、ブラウザとOS依存を同梱したPlaywright公式イメージ（`mcr.microsoft.com/playwright`）のコンテナで実行する。ホストランナーで`playwright install --with-deps`を実行すると、aptのフォント取得が遅いときに10分以上かかることがあるためである。イメージのタグは、`package-lock.json`の`@playwright/test`と同じバージョンに揃える。
+
 ## コマンド
 
 | コマンド | 内容 |
@@ -126,7 +128,7 @@ npx wrangler@4.157.0 pages deploy dist --project-name=<プロジェクト名> --
 - `Content-Security-Policy`・`X-Content-Type-Options`・`Referrer-Policy`・`Permissions-Policy`・`Strict-Transport-Security`: すべてのパスに付ける
 - `Cache-Control`: `/assets/*`は1年・`immutable`、`/feed.xml`と`/sitemap.xml`は1時間にする
 
-`Content-Security-Policy`は、実際に生成したHTMLが読み込む先だけを許可している。外部のオリジンを許可しているのは`frame-src`だけで、YouTube（`www.youtube-nocookie.com`）・Spotify（`open.spotify.com`）・Apple Music（`embed.music.apple.com`）の埋め込みiframeに使う。Xの埋め込みはビルド時に静的なカードにして画像も自サイトから配信するため、外部の許可は要らない。`img-src`の`data:`はカードのアイコン、`style-src`の`'unsafe-inline'`はYouTubeの埋め込みに付く`style`属性のために必要である。
+`Content-Security-Policy`は、実際に生成したHTMLが読み込む先だけを許可している。外部のオリジンを許可しているのは`frame-src`だけで、YouTube（`www.youtube-nocookie.com`）・Spotify（`open.spotify.com`）・Apple Music（`embed.music.apple.com`）の埋め込みiframeに使う。Xの埋め込みはビルド時に静的なカードにして画像も自サイトから配信するため、外部の許可は要らない。`img-src`の`data:`はカードのアイコン、`style-src`の`'unsafe-inline'`はYouTubeの埋め込みに付く`style`属性のために必要である。許可先はブラウザで違反を確認して決めた最小構成のため、増やすときも違反を確認してから足す。
 
 埋め込みや外部の画像・スクリプトを追加したときは、次のコマンドで`_headers`を適用した状態のサイトを確認する。ブラウザの開発者ツールのコンソールにContent Security Policyの違反が出ないことを確かめる。
 
