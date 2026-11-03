@@ -92,7 +92,7 @@ E2Eテストは`dist-e2e/`へビルドし、その出力を`http://127.0.0.1:417
 
 配信を有効にする手順を示す。リポジトリの設定とCloudflareの設定は手動で行う。
 
-1. CloudflareでDirect Uploadのプロジェクトを作る。Git連携で作ったプロジェクトには、wranglerから直接アップロードできない。ワークフローと同じバージョンのwranglerで作る場合は、`CLOUDFLARE_API_TOKEN`と`CLOUDFLARE_ACCOUNT_ID`を環境変数に設定して、次のコマンドを実行する。
+1. CloudflareでDirect Uploadのプロジェクトを作る。このリポジトリはGitHub Actionsから`wrangler pages deploy`で配信するため、Cloudflare PagesのGit連携は使わない。ワークフローと同じバージョンのwranglerで作る場合は、`CLOUDFLARE_API_TOKEN`と`CLOUDFLARE_ACCOUNT_ID`を環境変数に設定して、次のコマンドを実行する。
 
    ```sh
    npx wrangler@4.157.0 pages project create <プロジェクト名> --production-branch=main
