@@ -79,14 +79,14 @@ E2Eテストは`dist-e2e/`へビルドし、その出力を`http://127.0.0.1:417
 | ジョブ | 実行する場面 | 配信先 |
 | --- | --- | --- |
 | `deploy-production` | `main`へのpush | 本番サイト（`--branch=main`） |
-| `deploy-preview` | `main`向けPRの作成・更新 | PRのブランチ名に対応するプレビューURL |
+| `deploy-preview` | 手動実行（Run workflow） | 実行したブランチ名に対応するプレビューURL |
 
 どちらのジョブにも次の条件がある。
 
 - リポジトリ変数`PAGES_DEPLOY_ENABLED`が`true`である。未登録または`true`以外のときは、どちらのジョブもスキップして何も配信しない
 - `lint`・`check`・`test`・`e2e`がすべて成功している
 
-`deploy-preview`は、Secretsが渡らないフォークからのPRとDependabotのPRでは実行しない。PRへのコメントは投稿せず、プレビューのURLは`deploy-preview`ジョブのサマリーに書く。同じPRに新しいpushがあると、実行中のプレビュー配信はキャンセルする。`deploy-production`は直列に実行し、実行中の配信を後続のジョブでキャンセルしない。
+`deploy-preview`はPRでは自動で配信しない。PRの差分をSecretsのある環境でビルドしないため、手動実行だけにしている。Actionsの「CI」を選び、「Run workflow」で配信したいブランチを指定して実行する。`main`を指定しても配信しない。手動実行でもCIのすべてのジョブを通してから配信する。PRへのコメントは投稿せず、プレビューのURLは`deploy-preview`ジョブのサマリーに書く。同じブランチで新しい手動実行があると、実行中のプレビュー配信はキャンセルする。`deploy-production`は直列に実行し、実行中の配信を後続のジョブでキャンセルしない。
 
 ### 初期設定
 
@@ -108,7 +108,7 @@ E2Eテストは`dist-e2e/`へビルドし、その出力を`http://127.0.0.1:417
    | Variable | `CLOUDFLARE_PAGES_PROJECT_NAME` | 手順1で作ったプロジェクト名 |
    | Variable | `PAGES_DEPLOY_ENABLED` | `true`にすると配信を許可する。登録するまでは何も配信しない |
 
-4. 設定が済んだら`PAGES_DEPLOY_ENABLED`を`true`にする。次の`main`へのpushが本番へ、次のPRの作成・更新がプレビューへ配信される。配信を止めるときは`false`に戻すか、変数を削除する。
+4. 設定が済んだら`PAGES_DEPLOY_ENABLED`を`true`にする。次の`main`へのpushが本番へ配信される。プレビューは手動実行したときに配信される。配信を止めるときは`false`に戻すか、変数を削除する。
 
 ### 手動で配信する
 

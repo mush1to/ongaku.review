@@ -1,5 +1,5 @@
 # CI ワークフロー
-# main への push と、main 向け PR の作成・更新時に実行する。
+# main への push と、main 向け PR の作成・更新時に実行する。手動でも実行できる。
 # https://docs.github.com/ja/actions
 name: CI
 
@@ -14,6 +14,8 @@ on:
       - opened
       - synchronize
       - reopened
+  # 手動実行は、プレビュー配信（deploy-preview）に使う。
+  workflow_dispatch:
 
 # PR は、同じブランチで新しい実行が始まったら古い実行をキャンセルする。
 # main は、実行中の本番配信を止めないためキャンセルしない。
@@ -161,17 +163,17 @@ jobs:
       - check
       - test
       - e2e
-    # フォークからの PR と Dependabot の PR には Secrets が渡らないため、配信しない。
+    # PR では動かさない。PR の差分を Secrets のある環境でビルドしないため、手動実行だけにする。
+    # main を選ぶと本番へ配信されるため、main では動かさない。
     if: >-
-      github.event_name == 'pull_request'
+      github.event_name == 'workflow_dispatch'
       && vars.PAGES_DEPLOY_ENABLED == 'true'
-      && github.event.pull_request.head.repo.full_name == github.repository
-      && github.actor != 'dependabot[bot]'
+      && github.ref != 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    # 同じ PR に新しい push があったら、古いプレビューの配信はキャンセルする。
+    # 同じブランチで新しい手動実行があったら、古いプレビューの配信はキャンセルする。
     concurrency:
-      group: deploy-preview-${{ github.head_ref }}
+      group: deploy-preview-${{ github.ref_name }}
       cancel-in-progress: true
     steps:
       - name: Checkout
@@ -196,11 +198,11 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           CLOUDFLARE_PAGES_PROJECT_NAME: ${{ vars.CLOUDFLARE_PAGES_PROJECT_NAME }}
           # ブランチ名はシェルに直接埋め込まず、環境変数として渡す。
-          HEAD_REF: ${{ github.head_ref }}
+          REF_NAME: ${{ github.ref_name }}
           WRANGLER_SEND_METRICS: "false"
         run: |
           export WRANGLER_OUTPUT_FILE_PATH="$RUNNER_TEMP/wrangler-output.json"
-          npx --yes wrangler@4.157.0 pages deploy dist --project-name="$CLOUDFLARE_PAGES_PROJECT_NAME" --branch="$HEAD_REF"
+          npx --yes wrangler@4.157.0 pages deploy dist --project-name="$CLOUDFLARE_PAGES_PROJECT_NAME" --branch="$REF_NAME"
       - name: Write preview URLs to job summary
         # PR へのコメントは投稿しない。URL はジョブのサマリーだけに書く。
         run: |
