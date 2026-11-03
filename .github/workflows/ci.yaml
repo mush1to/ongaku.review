@@ -149,12 +149,12 @@ jobs:
     if: >-
       github.event_name == 'workflow_dispatch'
       && vars.PAGES_DEPLOY_ENABLED == 'true'
+      && github.ref_type == 'branch'
       && github.ref != 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     concurrency:
       group: deploy-preview-${{ github.ref_name }}
-      cancel-in-progress: true
     steps:
       - name: Checkout
         uses: actions/checkout@v7
