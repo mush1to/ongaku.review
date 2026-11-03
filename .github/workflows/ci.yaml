@@ -1,5 +1,4 @@
 # CI ワークフロー
-# main への push と、main 向け PR の作成・更新時に実行する。手動でも実行できる。
 # https://docs.github.com/ja/actions
 name: CI
 
@@ -14,11 +13,8 @@ on:
       - opened
       - synchronize
       - reopened
-  # 手動実行は、プレビュー配信（deploy-preview）に使う。
   workflow_dispatch:
 
-# PR は、同じブランチで新しい実行が始まったら古い実行をキャンセルする。
-# main は、実行中の本番配信を止めないためキャンセルしない。
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
@@ -113,9 +109,6 @@ jobs:
           retention-days: 7
           if-no-files-found: ignore
 
-  # 以下の2つの deploy ジョブは、リポジトリ変数 PAGES_DEPLOY_ENABLED が 'true' のときだけ動く。
-  # 未登録または 'true' 以外のときはスキップされ、何も配信しない。
-  # どちらも lint・check・test・e2e がすべて成功した後にだけ実行する。
   # Cloudflare Pages は Git 連携を使わず、ここから wrangler で直接アップロードする。
   deploy-production:
     name: Deploy to Cloudflare Pages (production)
@@ -127,7 +120,6 @@ jobs:
     if: github.event_name == 'push' && vars.PAGES_DEPLOY_ENABLED == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    # 本番の配信は直列にし、実行中のデプロイは途中でキャンセルしない。
     concurrency:
       group: deploy-production
       cancel-in-progress: false
@@ -171,7 +163,6 @@ jobs:
       && github.ref != 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    # 同じブランチで新しい手動実行があったら、古いプレビューの配信はキャンセルする。
     concurrency:
       group: deploy-preview-${{ github.ref_name }}
       cancel-in-progress: true
@@ -204,7 +195,6 @@ jobs:
           export WRANGLER_OUTPUT_FILE_PATH="$RUNNER_TEMP/wrangler-output.json"
           npx --yes wrangler@4.157.0 pages deploy dist --project-name="$CLOUDFLARE_PAGES_PROJECT_NAME" --branch="$REF_NAME"
       - name: Write preview URLs to job summary
-        # PR へのコメントは投稿しない。URL はジョブのサマリーだけに書く。
         run: |
           {
             echo "### Cloudflare Pages プレビュー"
