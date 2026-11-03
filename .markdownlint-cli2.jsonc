@@ -2,7 +2,10 @@
   "$schema": "https://raw.githubusercontent.com/DavidAnson/markdownlint-cli2/main/schema/markdownlint-cli2-config-schema.json",
   "config": {
     "default": true,
-    "MD013": false
+    "MD013": false,
+    "MD033": {
+      "allowed_elements": ["Tweet", "YouTube", "Spotify", "AppleMusic"]
+    }
   },
   "globs": ["**/*.md"],
   "ignores": ["**/node_modules/**", "**/.git/**", "**/.artifacts/**"]

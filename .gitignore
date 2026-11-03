@@ -71,6 +71,8 @@ api_key.txt
 # サイトの生成物
 dist/
 dist-e2e/
+/embeds/
+/public/embeds/twitter/media/
 .vite/
 .artifacts/
 .claude/skills/

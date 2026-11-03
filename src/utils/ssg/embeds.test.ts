@@ -1,12 +1,9 @@
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import type { MarkdownNode, TransformContext } from "@ox-content/vite-plugin";
-import { transformAllPlugins } from "@ox-content/vite-plugin";
-import { fromMarkdown } from "mdast-util-from-markdown";
+import type { Plugin } from "vite";
 import { afterEach, describe, expect, it } from "vitest";
-import { embedDirectories, embedOptions, referencedEmbedAssets } from "./embeds";
-import { createTweetUrlEmbeds } from "./standalone-embeds";
+import { embedMediaPlugin, embedOptions } from "./embeds";
 
 const roots: string[] = [];
 
@@ -17,63 +14,65 @@ async function root() {
 }
 
 afterEach(async () => {
-  await Promise.all(roots.splice(0).map((directory) => rm(directory, { recursive: true })));
+  await Promise.all(
+    roots.splice(0).map((directory) => rm(directory, { recursive: true, force: true })),
+  );
 });
+
+async function build(plugin: Plugin, output: string) {
+  const configResolved = plugin.configResolved as unknown as (config: unknown) => void;
+  await configResolved({ command: "build", mode: "production", build: { outDir: output } });
+  const closeBundle = plugin.closeBundle as unknown as { handler: () => Promise<void> };
+  await closeBundle.handler();
+}
 
 describe("embedOptions", () => {
   it("keeps the tweet cache under the repository", () => {
     const options = embedOptions("/site");
-    expect(options.transformers).toHaveLength(1);
-    expect(options.embeds?.twitter).toMatchObject({
+    expect(options.embeds.twitter).toMatchObject({
       fetch: true,
       appearance: "full",
       lang: "ja",
+      timeZone: "Asia/Tokyo",
+      timeout: 8000,
+      cache: true,
       cacheDir: path.join("/site", "embeds/twitter"),
-      mediaOutputDir: path.join("/site", "embeds/twitter/media"),
+      mediaOutputDir: path.join("/site", "public/embeds/twitter/media"),
       mediaPublicPath: "/embeds/twitter/media",
     });
   });
-});
 
-describe("referencedEmbedAssets", () => {
-  it("returns only cached media that the HTML references", async () => {
-    const siteRoot = await root();
-    const { media } = embedDirectories(siteRoot);
-    await mkdir(media, { recursive: true });
-    await writeFile(path.join(media, "20-avatar.jpg"), "");
-    await writeFile(path.join(media, "20-media-1.jpg"), "");
+  it("enables Spotify and Apple Music", () => {
+    const options = embedOptions("/site");
+    expect(options.embeds.spotify).toBe(true);
+    expect(options.embeds.appleMusic).toBe(true);
+  });
 
-    const assets = await referencedEmbedAssets(
-      [
-        '<img src="/embeds/twitter/media/20-avatar.jpg">',
-        '<video poster="/embeds/twitter/media/20-media-1.jpg"></video>',
-        '<img src="/embeds/twitter/media/20-missing.jpg">',
-        '<img src="/assets/thumbnail.png">',
-        '<img src="/embeds/twitter/media/../../etc/passwd">',
-      ].join(""),
-      siteRoot,
-    );
-
-    expect(assets.map((asset) => asset.publicPath).sort()).toEqual([
-      "/embeds/twitter/media/20-avatar.jpg",
-      "/embeds/twitter/media/20-media-1.jpg",
-    ]);
+  it("returns embed options only", () => {
+    expect(embedOptions("/site")).not.toHaveProperty("transformers");
   });
 });
 
-describe("tweet cards", () => {
-  it("turns a standalone post URL into a card element", async () => {
-    const transformer = createTweetUrlEmbeds();
-    const ast = await transformer.transform(
-      fromMarkdown(
-        "[https://x.com/jack/status/20](https://x.com/jack/status/20)",
-      ) as unknown as MarkdownNode,
-      {} as TransformContext,
-    );
-    const html = await transformAllPlugins(ast.children![0]!.value as string, { twitter: true });
+describe("embedMediaPlugin", () => {
+  it("copies fetched media into the output", async () => {
+    const siteRoot = await root();
+    const media = path.join(siteRoot, "public/embeds/twitter/media");
+    await mkdir(media, { recursive: true });
+    await writeFile(path.join(media, "20-avatar.jpg"), "avatar");
 
-    expect(html).toContain('class="ox-tweet');
-    expect(html).toContain('href="https://x.com/jack/status/20"');
-    expect(html).toContain("@jack");
+    const output = path.join(siteRoot, "dist");
+    await build(embedMediaPlugin(siteRoot), output);
+
+    expect(await readFile(path.join(output, "embeds/twitter/media/20-avatar.jpg"), "utf8")).toBe(
+      "avatar",
+    );
+  });
+
+  it("leaves the output alone when nothing was fetched", async () => {
+    const siteRoot = await root();
+
+    await build(embedMediaPlugin(siteRoot), path.join(siteRoot, "dist"));
+
+    await expect(readdir(path.join(siteRoot, "dist"))).rejects.toMatchObject({ code: "ENOENT" });
   });
 });
