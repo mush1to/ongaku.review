@@ -1,25 +1,19 @@
-import { access } from "node:fs/promises";
+import { copyFile, mkdir, readdir } from "node:fs/promises";
 import path from "node:path";
 import type {
-  CollectionAssetInput,
   OxContentCustomHostBaseContext,
   OxContentCustomHostMarkdownResult,
   OxContentOptions,
 } from "@ox-content/vite-plugin";
-import { createTweetUrlEmbeds } from "./standalone-embeds";
+import type { Plugin } from "vite";
 import { preserveFullWidthSpaces } from "./whitespace";
 
-export const tweetMediaPublicPath = "/embeds/twitter/media";
-
-export function embedDirectories(root: string) {
-  const base = path.join(root, "embeds/twitter");
-  return { cache: base, media: path.join(base, "media") };
+function embedMediaDirectory(root: string) {
+  return path.join(root, "public/embeds/twitter/media");
 }
 
 export function embedOptions(root: string) {
-  const directories = embedDirectories(root);
   return {
-    transformers: [createTweetUrlEmbeds()],
     embeds: {
       twitter: {
         fetch: true,
@@ -28,12 +22,49 @@ export function embedOptions(root: string) {
         timeZone: "Asia/Tokyo",
         timeout: 8000,
         cache: true,
-        cacheDir: directories.cache,
-        mediaOutputDir: directories.media,
-        mediaPublicPath: tweetMediaPublicPath,
+        cacheDir: path.join(root, "embeds/twitter"),
+        mediaOutputDir: embedMediaDirectory(root),
+        mediaPublicPath: "/embeds/twitter/media",
+      },
+      spotify: true,
+      appleMusic: true,
+    },
+  } satisfies Pick<OxContentOptions, "embeds">;
+}
+
+async function mediaFiles(directory: string) {
+  try {
+    return (await readdir(directory, { withFileTypes: true })).filter((entry) => entry.isFile());
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return [];
+    throw error;
+  }
+}
+
+/** Fetched media is written while pages render, after Vite has already copied public. */
+export function embedMediaPlugin(root: string): Plugin {
+  let outputDirectory: string | undefined;
+  return {
+    name: "site-embed-media",
+    configResolved(config) {
+      if (config.command === "build" && config.mode !== "test")
+        outputDirectory = path.resolve(root, config.build.outDir);
+    },
+    closeBundle: {
+      order: "post",
+      sequential: true,
+      async handler() {
+        if (!outputDirectory) return;
+        const media = embedMediaDirectory(root);
+        const files = await mediaFiles(media);
+        if (!files.length) return;
+        const target = path.join(outputDirectory, "embeds/twitter/media");
+        await mkdir(target, { recursive: true });
+        for (const file of files)
+          await copyFile(path.join(media, file.name), path.join(target, file.name));
       },
     },
-  } satisfies Pick<OxContentOptions, "transformers" | "embeds">;
+  };
 }
 
 interface DocumentSource {
@@ -48,7 +79,7 @@ interface CachedRender {
 
 const renders = new WeakMap<object, Map<string, CachedRender>>();
 
-/** Shares one render between asset planning and the page, even when a remote request fails. */
+/** Reuses the previous render while the source is unchanged, even when a remote request fails. */
 export function renderDocumentMarkdown(
   ctx: OxContentCustomHostBaseContext,
   document: DocumentSource,
@@ -71,39 +102,4 @@ export function renderDocumentMarkdown(
     if (documents.get(key) === entry) documents.delete(key);
   });
   return result;
-}
-
-const mediaFilename = /^[\w-]+\.[a-z0-9]+$/i;
-const mediaReference = new RegExp(`(?:src|poster)="${tweetMediaPublicPath}/([^"]+)"`, "g");
-
-/** Only media that exists is published, so a partial cache never fails the build. */
-export async function referencedEmbedAssets(html: string, root: string) {
-  const assets = new Map<string, CollectionAssetInput>();
-  for (const match of html.matchAll(mediaReference)) {
-    const filename = match[1]!;
-    if (!mediaFilename.test(filename)) continue;
-    const publicPath = tweetMediaPublicPath + "/" + filename;
-    const sourcePath = path.join(embedDirectories(root).media, filename);
-    if (
-      await access(sourcePath).then(
-        () => true,
-        () => false,
-      )
-    )
-      assets.set(publicPath, { sourcePath, publicPath });
-  }
-  return [...assets.values()];
-}
-
-export async function collectEmbedAssets(
-  ctx: OxContentCustomHostBaseContext,
-  documents: readonly DocumentSource[],
-) {
-  const assets = new Map<string, CollectionAssetInput>();
-  for (const document of documents) {
-    const rendered = await renderDocumentMarkdown(ctx, document);
-    for (const asset of await referencedEmbedAssets(rendered.html, ctx.root))
-      assets.set(asset.sourcePath, asset);
-  }
-  return [...assets.values()];
 }
