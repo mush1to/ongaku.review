@@ -76,7 +76,10 @@ describe("embedMediaPlugin", () => {
     await expect(readdir(path.join(siteRoot, "dist"))).rejects.toMatchObject({ code: "ENOENT" });
   });
 
-  it.skipIf(process.getuid?.() === 0)("rethrows a directory it cannot read", async () => {
+  // chmod 000 does not make a directory unreadable on Windows.
+  const canMakeDirectoryUnreadable = process.platform !== "win32" && process.getuid?.() !== 0;
+
+  it.skipIf(!canMakeDirectoryUnreadable)("rethrows a directory it cannot read", async () => {
     const siteRoot = await root();
     const media = path.join(siteRoot, "public/embeds/twitter/media");
     await mkdir(media, { recursive: true });
