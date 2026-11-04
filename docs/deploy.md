@@ -43,22 +43,22 @@
 
 配信を有効にする手順を示す。リポジトリの設定とCloudflareの設定は手動で行う。
 
-1. CloudflareでDirect Uploadのプロジェクトを作る。このリポジトリはGitHub Actionsから`wrangler pages deploy`で配信するため、Cloudflare PagesのGit連携は使わない。ワークフローと同じバージョンのwranglerで作る場合は、`CLOUDFLARE_API_TOKEN`と`CLOUDFLARE_ACCOUNT_ID`を環境変数に設定して、次のコマンドを実行する。
+1. Cloudflareで、対象アカウントの「Cloudflare Pages: Edit」権限を持つAPIトークンを作る。
+2. CloudflareでDirect Uploadのプロジェクトを作る。このリポジトリはGitHub Actionsから`wrangler pages deploy`で配信するため、Cloudflare PagesのGit連携は使わない。ワークフローと同じバージョンのwranglerで作る場合は、`CLOUDFLARE_API_TOKEN`と`CLOUDFLARE_ACCOUNT_ID`を環境変数に設定して、次のコマンドを実行する。
 
    ```sh
    npx wrangler@4.157.0 pages project create <プロジェクト名> --production-branch=main
    ```
 
-2. Cloudflareのゾーンに本番ドメインを接続し、Pagesプロジェクトのカスタムドメインとして登録する。`*.pages.dev`のドメインにはAlways Use HTTPSを設定できないため、先に接続する。
-3. Cloudflareで、対象ドメインの「Always Use HTTPS」を有効にする。
-4. Cloudflareで、対象アカウントの「Cloudflare Pages: Edit」権限を持つAPIトークンを作る。
+3. Cloudflareのゾーンに本番ドメインを接続し、Pagesプロジェクトのカスタムドメインとして登録する。`*.pages.dev`のドメインにはAlways Use HTTPSを設定できないため、先に接続する。
+4. Cloudflareで、対象ドメインの「Always Use HTTPS」を有効にする。
 5. GitHubの「Settings > Secrets and variables > Actions」に、次の値を登録する。登録する名前と説明は[`.env.example`](../.env.example)にもある。
 
    | 種類 | 名前 | 内容 |
    | --- | --- | --- |
-   | Secret | `CLOUDFLARE_API_TOKEN` | 手順4で作ったAPIトークン |
+   | Secret | `CLOUDFLARE_API_TOKEN` | 手順1で作ったAPIトークン |
    | Secret | `CLOUDFLARE_ACCOUNT_ID` | CloudflareのアカウントID |
-   | Variable | `CLOUDFLARE_PAGES_PROJECT_NAME` | 手順1で作ったプロジェクト名 |
+   | Variable | `CLOUDFLARE_PAGES_PROJECT_NAME` | 手順2で作ったプロジェクト名 |
    | Variable | `PAGES_DEPLOY_ENABLED` | `true`にすると配信を許可する。登録するまでは何も配信しない |
 
 6. 設定が済んだら`PAGES_DEPLOY_ENABLED`を`true`にする。次の`main`へのpushが本番へ配信される。プレビューは手動実行したときに配信される。配信を止めるときは`false`に戻すか、変数を削除する。
