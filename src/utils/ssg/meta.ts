@@ -33,7 +33,7 @@ function cardType(thumbnail: PageData["thumbnail"]): "summary" | "summary_large_
   return width >= 300 && height >= 157 ? "summary_large_image" : "summary";
 }
 
-export interface PageHeadInput {
+interface PageHeadInput {
   page: PageData;
   site: SiteMeta;
   /** The dev server serves pages that must stay out of search results. */

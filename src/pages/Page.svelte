@@ -106,7 +106,7 @@
         <h1 class="visually-hidden">{page.title}</h1>
       {/if}
       {#if page.kind === "home" || page.kind === "tag"}
-        <div class="list-area">
+        <div>
           <div class="pane">
             <table class="file-table">
               <caption class="visually-hidden">
