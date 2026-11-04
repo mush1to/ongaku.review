@@ -76,4 +76,4 @@ npx wrangler@4.157.0 pages deploy dist --project-name=<プロジェクト名> --
 
 ## キャッシュ制御
 
-[`public/_headers`](../public/_headers)は、ビルドで`dist/_headers`へそのままコピーされ、Cloudflare Pagesが配信時にHTTPヘッダとして付ける。配るのは`Cache-Control`だけで、`/assets/*`は1年・`immutable`、`/feed.xml`と`/sitemap.xml`は1時間にする。
+[`public/_headers`](../public/_headers)は、ビルドで`dist/_headers`へそのままコピーされ、Cloudflare Pagesが配信時に適用する。このファイルで指定するのは`Cache-Control`だけで、`/assets/*`は1年・`immutable`、`/feed.xml`と`/sitemap.xml`は1時間にする。Cloudflareが配信時に付けるヘッダの有無は、このファイルでは決まらない。
