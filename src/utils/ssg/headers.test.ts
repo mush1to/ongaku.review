@@ -4,47 +4,37 @@ import { describe, expect, it } from "vitest";
 
 const headersFile = path.resolve(import.meta.dirname, "../../../public/_headers");
 
-async function globalBlock() {
-  const lines = (await readFile(headersFile, "utf8")).split("\n");
-  const start = lines.findIndex((line) => line === "/*");
-  expect(start, "/* のブロックがない").toBeGreaterThanOrEqual(0);
-  const headers = new Map<string, string>();
-  for (const line of lines.slice(start + 1)) {
-    if (!line.startsWith(" ")) break;
-    const separator = line.indexOf(":");
-    headers.set(line.slice(0, separator).trim(), line.slice(separator + 1).trim());
+async function headerBlocks() {
+  const blocks = new Map<string, Map<string, string>>();
+  let current: Map<string, string> | undefined;
+  for (const line of (await readFile(headersFile, "utf8")).split("\n")) {
+    if (line.startsWith(" ")) {
+      const separator = line.indexOf(":");
+      current?.set(line.slice(0, separator).trim(), line.slice(separator + 1).trim());
+      continue;
+    }
+    if (line.trim() === "") continue;
+    current = new Map();
+    blocks.set(line.trim(), current);
   }
-  return headers;
+  return blocks;
 }
 
 describe("public/_headers", () => {
-  it("必須のセキュリティヘッダとCSPディレクティブを_headersに固定する", async () => {
-    const headers = await globalBlock();
-    expect(headers.get("X-Content-Type-Options")).toBe("nosniff");
-    for (const name of [
-      "Content-Security-Policy",
-      "Referrer-Policy",
-      "Permissions-Policy",
-      "Strict-Transport-Security",
-    ])
-      expect(headers.get(name), name).toBeTruthy();
+  it("キャッシュ制御を_headersに固定する", async () => {
+    const blocks = await headerBlocks();
+    expect([...blocks.keys()]).toEqual(["/assets/*", "/feed.xml", "/sitemap.xml"]);
+    expect(blocks.get("/assets/*")?.get("Cache-Control")).toBe(
+      "public, max-age=31536000, immutable",
+    );
+    for (const pattern of ["/feed.xml", "/sitemap.xml"])
+      expect(blocks.get(pattern)?.get("Cache-Control"), pattern).toBe("public, max-age=3600");
+  });
 
-    const policy = headers.get("Content-Security-Policy") ?? "";
-    const directives = new Map(
-      policy.split(";").map((directive) => {
-        const [name, ...values] = directive.trim().split(/\s+/);
-        return [name, values] as const;
-      }),
-    );
-    expect(directives.get("default-src")).toEqual(["'self'"]);
-    expect(directives.get("object-src")).toEqual(["'none'"]);
-    expect(directives.get("frame-ancestors")).toEqual(["'none'"]);
-    expect(directives.get("frame-src")).toEqual(
-      expect.arrayContaining([
-        "https://www.youtube-nocookie.com",
-        "https://open.spotify.com",
-        "https://embed.music.apple.com",
-      ]),
-    );
+  it("セキュリティヘッダを配らないことを_headersに固定する", async () => {
+    const blocks = await headerBlocks();
+    expect([...new Set([...blocks.values()].flatMap((headers) => [...headers.keys()]))]).toEqual([
+      "Cache-Control",
+    ]);
   });
 });
