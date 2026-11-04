@@ -48,7 +48,7 @@ jobs:
             exit 1
           fi
           if [ "$DEPLOY_ENVIRONMENT" = "preview" ] && [ "$SOURCE_BRANCH" = "main" ]; then
-            echo "::error::Preview deploys must come from a branch other than main. Choose the production environment to deploy main."
+            echo "::error::preview には main 以外のブランチを指定してください。main を配信するときは environment に production を選んでください"
             exit 1
           fi
           if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
@@ -100,6 +100,24 @@ jobs:
         env:
           GIT_NO_LAZY_FETCH: "1"
         run: npm run build
+      - name: Assert main has not moved
+        if: inputs.environment != 'preview'
+        env:
+          DEPLOY_SHA: ${{ needs.validate.outputs.sha }}
+          REPOSITORY: ${{ github.repository }}
+          SERVER_URL: ${{ github.server_url }}
+        run: |
+          REF="refs/heads/main"
+          MAIN_SHA=$(git ls-remote "$SERVER_URL/$REPOSITORY.git" "$REF" | awk -v ref="$REF" '$2 == ref { print $1 }')
+          if [ -z "$MAIN_SHA" ]; then
+            echo "::error::$REPOSITORY の $REF を取得できませんでした"
+            exit 1
+          fi
+          if [ "$MAIN_SHA" != "$DEPLOY_SHA" ]; then
+            echo "main の先頭が $MAIN_SHA に進んだため、$DEPLOY_SHA の配信を取りやめた" >> "$GITHUB_STEP_SUMMARY"
+            echo "::error::main の先頭が $MAIN_SHA に進んだため、$DEPLOY_SHA の配信を取りやめた"
+            exit 1
+          fi
       - name: Deploy to Cloudflare Pages
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}

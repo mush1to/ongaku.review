@@ -20,6 +20,7 @@
 
 - PRでは自動で配信しない。PRの差分をSecretsのある環境でビルドしないため、手動実行だけにしている
 - Actionsの「Deploy」を選び、「Run workflow」で`environment`と`source_branch`を指定して実行する
+- `environment`の既定は`preview`。`preview`を選ぶときは`source_branch`に`main`以外を入れる
 - `preview`では`main`以外のブランチを配信する。`preview`と`main`の組み合わせは失敗する。`--branch=main`は本番へ配信されるため
 - `production`では`main`だけを配信する。`main`以外を指定すると失敗する
 - `source_branch`のブランチが存在しないときは失敗する
@@ -31,6 +32,8 @@
 実行中の配信は、後から来た実行では中断されない。同じconcurrency groupの後続の実行は待機し、待機している間にさらに新しい実行が来ると、待機していた実行が置き換わることがある。手動実行でも`main`へのpushでも同じである。
 
 置き換えられた実行の配信は行われない。`validate`が配信元を1回だけSHAに解決し、`verify`と`deploy`はそのSHAをcheckoutする。配信されるのは、検証したSHAと同じコミットをビルドした内容である。`deploy`ジョブは、本番が`deploy-production`、プレビューが`deploy-preview-<ブランチ名>`のconcurrency groupで直列に実行し、実行中の配信を後続のジョブでキャンセルしない。
+
+本番の配信は、配信の直前に`main`の先頭が自分のSHAと一致するか確認する。一致しないときは配信せずに止め、ジョブのサマリーに理由を書く。
 
 ### プレビューURLの注意
 
