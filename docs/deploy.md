@@ -1,7 +1,5 @@
 # デプロイ
 
-Cloudflare Pages への配信手順と条件
-
 静的HTMLをCloudflare Pagesへ配信する。Cloudflare PagesのGit連携は使わず、[`.github/workflows/ci.yaml`](../.github/workflows/ci.yaml)の`deploy-production`と`deploy-preview`が、`npm run build`で作った`dist/`をwranglerで直接アップロードする。アナリティクスのタグは入れず、アクセスの計測はCloudflare側で行う。
 
 ## 配信の条件
