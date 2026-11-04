@@ -44,7 +44,7 @@ jobs:
           SOURCE_BRANCH: ${{ inputs.source_branch || 'main' }}
         run: |
           if [ "$DEPLOY_ENVIRONMENT" = "production" ] && [ "$SOURCE_BRANCH" != "main" ]; then
-            echo "::error::Production deploys must come from main. Choose the preview environment to deploy $SOURCE_BRANCH."
+            echo "::error::production は main からのみ配信できます。$SOURCE_BRANCH を配信するときは environment に preview を選んでください"
             exit 1
           fi
           if [ "$DEPLOY_ENVIRONMENT" = "preview" ] && [ "$SOURCE_BRANCH" = "main" ]; then
@@ -55,7 +55,7 @@ jobs:
             REF="refs/heads/$SOURCE_BRANCH"
             SHA=$(git ls-remote "$SERVER_URL/$REPOSITORY.git" "$REF" | awk -v ref="$REF" '$2 == ref { print $1 }')
             if [ -z "$SHA" ]; then
-              echo "::error::The branch $SOURCE_BRANCH does not exist in $REPOSITORY."
+              echo "::error::$REPOSITORY に $SOURCE_BRANCH が存在しません"
               exit 1
             fi
           else
