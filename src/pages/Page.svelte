@@ -88,7 +88,9 @@
         <ol>
           {#each page.breadcrumbs as crumb, index (index)}
             <li>
-              <span aria-current="page">{crumb.label}</span>
+              <span aria-current={index === page.breadcrumbs.length - 1 ? "page" : undefined}>
+                {crumb.label}
+              </span>
             </li>
           {/each}
         </ol>
