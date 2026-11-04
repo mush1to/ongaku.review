@@ -49,18 +49,21 @@
    npx wrangler@4.157.0 pages project create <プロジェクト名> --production-branch=main
    ```
 
-2. Cloudflareで、対象ドメインの「Always Use HTTPS」を有効にする。セキュリティヘッダでHSTSを配らないため、HTTPSへの強制はこの設定が担う。
-3. Cloudflareで、対象アカウントの「Cloudflare Pages: Edit」権限を持つAPIトークンを作る。
-4. GitHubの「Settings > Secrets and variables > Actions」に、次の値を登録する。登録する名前と説明は[`.env.example`](../.env.example)にもある。
+2. Cloudflareのゾーンに本番ドメインを接続し、Pagesプロジェクトのカスタムドメインとして登録する。`*.pages.dev`のドメインにはAlways Use HTTPSを設定できないため、先に接続する。
+3. Cloudflareで、対象ドメインの「Always Use HTTPS」を有効にする。
+4. Cloudflareで、対象アカウントの「Cloudflare Pages: Edit」権限を持つAPIトークンを作る。
+5. GitHubの「Settings > Secrets and variables > Actions」に、次の値を登録する。登録する名前と説明は[`.env.example`](../.env.example)にもある。
 
    | 種類 | 名前 | 内容 |
    | --- | --- | --- |
-   | Secret | `CLOUDFLARE_API_TOKEN` | 手順3で作ったAPIトークン |
+   | Secret | `CLOUDFLARE_API_TOKEN` | 手順4で作ったAPIトークン |
    | Secret | `CLOUDFLARE_ACCOUNT_ID` | CloudflareのアカウントID |
    | Variable | `CLOUDFLARE_PAGES_PROJECT_NAME` | 手順1で作ったプロジェクト名 |
    | Variable | `PAGES_DEPLOY_ENABLED` | `true`にすると配信を許可する。登録するまでは何も配信しない |
 
-5. 設定が済んだら`PAGES_DEPLOY_ENABLED`を`true`にする。次の`main`へのpushが本番へ配信される。プレビューは手動実行したときに配信される。配信を止めるときは`false`に戻すか、変数を削除する。
+6. 設定が済んだら`PAGES_DEPLOY_ENABLED`を`true`にする。次の`main`へのpushが本番へ配信される。プレビューは手動実行したときに配信される。配信を止めるときは`false`に戻すか、変数を削除する。
+
+「Always Use HTTPS」はHTTPで来た要求をエッジでHTTPSへリダイレクトするだけで、HSTSのようにブラウザへHTTPSの使用を記憶させ、最初のHTTP要求自体を発行させない効果は無い。HSTSを配らないため、初回アクセスの平文要求はオンパス攻撃の対象になり得る。この初回要求のリスクは許容する。
 
 ## 手動で配信する
 
