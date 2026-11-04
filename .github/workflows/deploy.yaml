@@ -1,0 +1,138 @@
+name: Deploy
+
+run-name: Deploy ${{ inputs.environment || 'production' }} from ${{ inputs.source_branch || github.ref_name }} by @${{ github.actor }}
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Environment to deploy to
+        type: choice
+        options:
+          - preview
+          - production
+        default: preview
+        required: true
+      source_branch:
+        description: Branch to deploy from (production requires main)
+        type: string
+        default: main
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Validate the deployment source
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      sha: ${{ steps.resolve.outputs.sha }}
+    steps:
+      - name: Resolve the deployment source
+        id: resolve
+        env:
+          REPOSITORY: ${{ github.repository }}
+          SERVER_URL: ${{ github.server_url }}
+          EVENT_NAME: ${{ github.event_name }}
+          EVENT_SHA: ${{ github.sha }}
+          DEPLOY_ENVIRONMENT: ${{ inputs.environment || 'production' }}
+          SOURCE_BRANCH: ${{ inputs.source_branch || 'main' }}
+        run: |
+          if [ "$DEPLOY_ENVIRONMENT" = "production" ] && [ "$SOURCE_BRANCH" != "main" ]; then
+            echo "::error::production は main からのみ配信できます。$SOURCE_BRANCH を配信するときは environment に preview を選んでください"
+            exit 1
+          fi
+          if [ "$DEPLOY_ENVIRONMENT" = "preview" ] && [ "$SOURCE_BRANCH" = "main" ]; then
+            echo "::error::preview には main 以外のブランチを指定してください。main を配信するときは environment に production を選んでください"
+            exit 1
+          fi
+          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            REF="refs/heads/$SOURCE_BRANCH"
+            SHA=$(git ls-remote "$SERVER_URL/$REPOSITORY.git" "$REF" | awk -v ref="$REF" '$2 == ref { print $1 }')
+            if [ -z "$SHA" ]; then
+              echo "::error::$REPOSITORY に $SOURCE_BRANCH が存在しません"
+              exit 1
+            fi
+          else
+            SHA="$EVENT_SHA"
+          fi
+          echo "sha=$SHA" >> "$GITHUB_OUTPUT"
+          echo "Deploying $SOURCE_BRANCH at $SHA." >> "$GITHUB_STEP_SUMMARY"
+
+  verify:
+    name: Verify
+    needs:
+      - validate
+    uses: ./.github/workflows/ci.yaml
+    with:
+      ref: ${{ needs.validate.outputs.sha }}
+
+  deploy:
+    name: Deploy ${{ inputs.environment || 'production' }}
+    needs:
+      - validate
+      - verify
+    if: vars.PAGES_DEPLOY_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    concurrency:
+      group: ${{ inputs.environment == 'preview' && format('deploy-preview-{0}', inputs.source_branch) || 'deploy-production' }}
+      cancel-in-progress: false
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.validate.outputs.sha }}
+          persist-credentials: false
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: .node-version
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Build (disable lazy fetch)
+        env:
+          GIT_NO_LAZY_FETCH: "1"
+        run: npm run build
+      - name: Assert main has not moved
+        if: inputs.environment != 'preview'
+        env:
+          DEPLOY_SHA: ${{ needs.validate.outputs.sha }}
+          REPOSITORY: ${{ github.repository }}
+          SERVER_URL: ${{ github.server_url }}
+        run: |
+          REF="refs/heads/main"
+          MAIN_SHA=$(git ls-remote "$SERVER_URL/$REPOSITORY.git" "$REF" | awk -v ref="$REF" '$2 == ref { print $1 }')
+          if [ -z "$MAIN_SHA" ]; then
+            echo "::error::$REPOSITORY の $REF を取得できませんでした"
+            exit 1
+          fi
+          if [ "$MAIN_SHA" != "$DEPLOY_SHA" ]; then
+            echo "main の先頭が $MAIN_SHA に進んだため、$DEPLOY_SHA の配信を取りやめた" >> "$GITHUB_STEP_SUMMARY"
+            echo "::error::main の先頭が $MAIN_SHA に進んだため、$DEPLOY_SHA の配信を取りやめた"
+            exit 1
+          fi
+      - name: Deploy to Cloudflare Pages
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_PAGES_PROJECT_NAME: ${{ vars.CLOUDFLARE_PAGES_PROJECT_NAME }}
+          PAGES_BRANCH: ${{ inputs.environment == 'preview' && inputs.source_branch || 'main' }}
+          WRANGLER_OUTPUT_FILE_PATH: ${{ runner.temp }}/wrangler-output.json
+          WRANGLER_SEND_METRICS: "false"
+        run: npx --yes wrangler@4.157.0 pages deploy dist --project-name="$CLOUDFLARE_PAGES_PROJECT_NAME" --branch="$PAGES_BRANCH"
+      - name: Write preview URL to summary
+        if: inputs.environment == 'preview'
+        env:
+          WRANGLER_OUTPUT_FILE_PATH: ${{ runner.temp }}/wrangler-output.json
+        run: |
+          {
+            echo "### Cloudflare Pages プレビュー"
+            jq -r 'select(.type == "pages-deploy-detailed") | "- ブランチ別URL: " + (.alias // "なし"), "- このコミットのURL: " + .url' "$WRANGLER_OUTPUT_FILE_PATH"
+          } >> "$GITHUB_STEP_SUMMARY"
