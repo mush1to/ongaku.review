@@ -43,23 +43,27 @@
 
 配信を有効にする手順を示す。リポジトリの設定とCloudflareの設定は手動で行う。
 
-1. CloudflareでDirect Uploadのプロジェクトを作る。このリポジトリはGitHub Actionsから`wrangler pages deploy`で配信するため、Cloudflare PagesのGit連携は使わない。ワークフローと同じバージョンのwranglerで作る場合は、`CLOUDFLARE_API_TOKEN`と`CLOUDFLARE_ACCOUNT_ID`を環境変数に設定して、次のコマンドを実行する。
+1. Cloudflareで、対象アカウントの「Cloudflare Pages: Edit」権限を持つAPIトークンを作る。
+2. CloudflareでDirect Uploadのプロジェクトを作る。このリポジトリはGitHub Actionsから`wrangler pages deploy`で配信するため、Cloudflare PagesのGit連携は使わない。ワークフローと同じバージョンのwranglerで作る場合は、`CLOUDFLARE_API_TOKEN`と`CLOUDFLARE_ACCOUNT_ID`を環境変数に設定して、次のコマンドを実行する。
 
    ```sh
    npx wrangler@4.157.0 pages project create <プロジェクト名> --production-branch=main
    ```
 
-2. Cloudflareで、対象アカウントの「Cloudflare Pages: Edit」権限を持つAPIトークンを作る。
-3. GitHubの「Settings > Secrets and variables > Actions」に、次の値を登録する。登録する名前と説明は[`.env.example`](../.env.example)にもある。
+3. Cloudflareのゾーンに本番ドメインを接続し、Pagesプロジェクトのカスタムドメインとして登録する。`*.pages.dev`のドメインにはAlways Use HTTPSを設定できないため、先に接続する。
+4. Cloudflareで、対象ドメインの「Always Use HTTPS」を有効にする。
+5. GitHubの「Settings > Secrets and variables > Actions」に、次の値を登録する。登録する名前と説明は[`.env.example`](../.env.example)にもある。
 
    | 種類 | 名前 | 内容 |
    | --- | --- | --- |
-   | Secret | `CLOUDFLARE_API_TOKEN` | 手順2で作ったAPIトークン |
+   | Secret | `CLOUDFLARE_API_TOKEN` | 手順1で作ったAPIトークン |
    | Secret | `CLOUDFLARE_ACCOUNT_ID` | CloudflareのアカウントID |
-   | Variable | `CLOUDFLARE_PAGES_PROJECT_NAME` | 手順1で作ったプロジェクト名 |
+   | Variable | `CLOUDFLARE_PAGES_PROJECT_NAME` | 手順2で作ったプロジェクト名 |
    | Variable | `PAGES_DEPLOY_ENABLED` | `true`にすると配信を許可する。登録するまでは何も配信しない |
 
-4. 設定が済んだら`PAGES_DEPLOY_ENABLED`を`true`にする。次の`main`へのpushが本番へ配信される。プレビューは手動実行したときに配信される。配信を止めるときは`false`に戻すか、変数を削除する。
+6. 設定が済んだら`PAGES_DEPLOY_ENABLED`を`true`にする。次の`main`へのpushが本番へ配信される。プレビューは手動実行したときに配信される。配信を止めるときは`false`に戻すか、変数を削除する。
+
+「Always Use HTTPS」はHTTPで来た要求をエッジでHTTPSへリダイレクトするだけで、HSTSのようにブラウザへHTTPSの使用を記憶させ、最初のHTTP要求自体を発行させない効果は無い。HSTSを配らないため、初回アクセスの平文要求はオンパス攻撃の対象になり得る。この初回要求のリスクは許容する。
 
 ## 手動で配信する
 
@@ -70,18 +74,6 @@ npm run build
 npx wrangler@4.157.0 pages deploy dist --project-name=<プロジェクト名> --branch=<ブランチ名>
 ```
 
-## セキュリティヘッダ
+## キャッシュ制御
 
-[`public/_headers`](../public/_headers)は、ビルドで`dist/_headers`へそのままコピーされ、Cloudflare Pagesが配信時にHTTPヘッダとして付ける。付けるヘッダは次のとおりである。
-
-- `Content-Security-Policy`・`X-Content-Type-Options`・`Referrer-Policy`・`Permissions-Policy`・`Strict-Transport-Security`: すべてのパスに付ける
-- `Cache-Control`: `/assets/*`は1年・`immutable`、`/feed.xml`と`/sitemap.xml`は1時間にする
-
-`Content-Security-Policy`は、実際に生成したHTMLが読み込む先だけを許可している。外部のオリジンを許可しているのは`frame-src`だけで、YouTube（`www.youtube-nocookie.com`）・Spotify（`open.spotify.com`）・Apple Music（`embed.music.apple.com`）の埋め込みiframeに使う。Xの埋め込みはビルド時に静的なカードにして画像も自サイトから配信するため、外部の許可は要らない。`img-src`の`data:`はカードのアイコンのために必要である。`style-src`の`'unsafe-inline'`が必要な理由は2つある。1つ目は、一覧ページの`pane-spacer`が空き行の数を表す`--empty-rows`を`style`属性で渡していること。2つ目は、YouTubeの埋め込みに付く`style`属性である。許可先はブラウザで違反を確認して決めた最小構成のため、増やすときも違反を確認してから足す。
-
-埋め込みや外部の画像・スクリプトを追加したときは、次のコマンドで`_headers`を適用した状態のサイトを確認する。ブラウザの開発者ツールのコンソールにContent Security Policyの違反が出ないことを確かめる。
-
-```sh
-npm run build
-npx wrangler@4.157.0 pages dev dist
-```
+[`public/_headers`](../public/_headers)は、ビルドで`dist/_headers`へそのままコピーされ、Cloudflare Pagesが配信時に適用する。このファイルで指定するのは`Cache-Control`だけで、`/assets/*`は1年・`immutable`、`/feed.xml`と`/sitemap.xml`は1時間にする。Cloudflareが配信時に付けるヘッダの有無は、このファイルでは決まらない。
