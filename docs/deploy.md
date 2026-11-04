@@ -70,7 +70,7 @@ npx wrangler@4.157.0 pages deploy dist --project-name=<プロジェクト名> --
 - `Content-Security-Policy`・`X-Content-Type-Options`・`Referrer-Policy`・`Permissions-Policy`・`Strict-Transport-Security`: すべてのパスに付ける
 - `Cache-Control`: `/assets/*`は1年・`immutable`、`/feed.xml`と`/sitemap.xml`は1時間にする
 
-`Content-Security-Policy`は、実際に生成したHTMLが読み込む先だけを許可している。外部のオリジンを許可しているのは`frame-src`だけで、YouTube（`www.youtube-nocookie.com`）・Spotify（`open.spotify.com`）・Apple Music（`embed.music.apple.com`）の埋め込みiframeに使う。Xの埋め込みはビルド時に静的なカードにして画像も自サイトから配信するため、外部の許可は要らない。`img-src`の`data:`はカードのアイコン、`style-src`の`'unsafe-inline'`はYouTubeの埋め込みに付く`style`属性のために必要である。許可先はブラウザで違反を確認して決めた最小構成のため、増やすときも違反を確認してから足す。
+`Content-Security-Policy`は、実際に生成したHTMLが読み込む先だけを許可している。外部のオリジンを許可しているのは`frame-src`だけで、YouTube（`www.youtube-nocookie.com`）・Spotify（`open.spotify.com`）・Apple Music（`embed.music.apple.com`）の埋め込みiframeに使う。Xの埋め込みはビルド時に静的なカードにして画像も自サイトから配信するため、外部の許可は要らない。`img-src`の`data:`はカードのアイコンのために必要である。`style-src`の`'unsafe-inline'`が必要な理由は2つある。1つ目は、一覧ページの`pane-spacer`が空き行の数を表す`--empty-rows`を`style`属性で渡していること。2つ目は、YouTubeの埋め込みに付く`style`属性である。許可先はブラウザで違反を確認して決めた最小構成のため、増やすときも違反を確認してから足す。
 
 埋め込みや外部の画像・スクリプトを追加したときは、次のコマンドで`_headers`を適用した状態のサイトを確認する。ブラウザの開発者ツールのコンソールにContent Security Policyの違反が出ないことを確かめる。
 
