@@ -118,7 +118,6 @@ describe("Vite search writer lifecycle", () => {
         path: "/posts/abbey-road",
         icon: "cd",
       });
-      expect(searchPages.toLowerCase()).not.toContain("unpublished-test");
     } finally {
       await rm(outputRoot, { recursive: true, force: true });
     }

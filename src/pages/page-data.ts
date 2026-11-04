@@ -1,18 +1,17 @@
 import type { PostIcon } from "../config/icons";
 
-export interface Breadcrumb {
+interface Breadcrumb {
   label: string;
-  path?: string;
 }
 
-export interface PostSummary {
+interface PostSummary {
   path: string;
   title: string;
   created?: string;
   icon: PostIcon;
 }
 
-export interface Thumbnail {
+interface Thumbnail {
   src: string;
   /** Pixel size read from the image file, for the OGP image hint. */
   width?: number;
@@ -28,7 +27,7 @@ export interface AuthorLink {
   label: string;
 }
 
-export interface Author {
+interface Author {
   name: string;
   description: string;
   /** Image URL. Undefined when the user has no icon. */

@@ -409,7 +409,6 @@ main {
 
 .pagination[hidden],
 .pagination-links[hidden],
-.pane-spacer[hidden],
 .search-pagination[hidden] {
   display: none;
 }
@@ -1272,11 +1271,6 @@ body:has(.search-window[open]) .window > .title-bar {
 
 .site-footer p {
   margin: 0;
-}
-
-.site-footer a {
-  color: inherit;
-  white-space: nowrap;
 }
 
 .ox-island {

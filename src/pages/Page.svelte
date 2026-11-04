@@ -88,11 +88,9 @@
         <ol>
           {#each page.breadcrumbs as crumb, index (index)}
             <li>
-              {#if crumb.path}
-                <a href={crumb.path}>{crumb.label}</a>
-              {:else}
-                <span aria-current="page">{crumb.label}</span>
-              {/if}
+              <span aria-current={index === page.breadcrumbs.length - 1 ? "page" : undefined}>
+                {crumb.label}
+              </span>
             </li>
           {/each}
         </ol>
@@ -106,7 +104,7 @@
         <h1 class="visually-hidden">{page.title}</h1>
       {/if}
       {#if page.kind === "home" || page.kind === "tag"}
-        <div class="list-area">
+        <div>
           <div class="pane">
             <table class="file-table">
               <caption class="visually-hidden">

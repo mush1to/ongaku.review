@@ -1,6 +1,6 @@
 import type { IconName } from "./icons";
 
-export interface NavigationLink {
+interface NavigationLink {
   path: string;
   label: string;
   icon: IconName;
@@ -17,7 +17,6 @@ export const site = {
   url: "https://ongaku.review",
   description: "音楽が好き。",
   author: "mush1to",
-  themeStorageKey: "ongaku.review.theme",
   themeColor: "#0b55e0",
   postsPerPage: 12,
   searchResultsPerPage: 10,

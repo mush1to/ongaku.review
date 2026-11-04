@@ -56,7 +56,7 @@ export interface ContentImage {
   height?: number;
 }
 
-export interface User {
+interface User {
   id: string;
   name: string;
   description: string;

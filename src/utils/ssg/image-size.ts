@@ -1,6 +1,6 @@
 import { open } from "node:fs/promises";
 
-export interface ImageSize {
+interface ImageSize {
   width: number;
   height: number;
 }
