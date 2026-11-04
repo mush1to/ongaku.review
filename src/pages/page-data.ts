@@ -2,7 +2,6 @@ import type { PostIcon } from "../config/icons";
 
 interface Breadcrumb {
   label: string;
-  path?: string;
 }
 
 interface PostSummary {

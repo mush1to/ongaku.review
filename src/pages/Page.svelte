@@ -88,11 +88,7 @@
         <ol>
           {#each page.breadcrumbs as crumb, index (index)}
             <li>
-              {#if crumb.path}
-                <a href={crumb.path}>{crumb.label}</a>
-              {:else}
-                <span aria-current="page">{crumb.label}</span>
-              {/if}
+              <span aria-current="page">{crumb.label}</span>
             </li>
           {/each}
         </ol>
