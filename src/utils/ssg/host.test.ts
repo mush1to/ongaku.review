@@ -59,10 +59,10 @@ describe("アドレスバー", () => {
     ]);
   });
 
-  it("記事をタイトルではなくURLの最後の区切りのファイル名にする", () => {
+  it("記事をpostsフォルダの下の、タイトルではなくURLの最後の区切りのファイル名にする", () => {
     expect(
       address(postPage([doc("/posts/abbey-road", "「アビイ・ロード」を2026年に聴く")], 0)),
-    ).toEqual(["abbey-road.html"]);
+    ).toEqual(["posts", "abbey-road.html"]);
   });
 
   it("Aboutをタイトルではなくabout.htmlにする", () => {

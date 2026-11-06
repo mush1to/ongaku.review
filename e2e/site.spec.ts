@@ -598,7 +598,19 @@ test.describe("記事ページ", () => {
     await expect(updated.locator("time")).toHaveText("2026/10/25");
 
     const address = page.getByRole("navigation", { name: "現在地" });
+    await expect(address.locator("li")).toHaveText(["posts", "abbey-road.html"]);
     await expect(address.locator("[aria-current='page']")).toHaveText("abbey-road.html");
+    expect(
+      await address.evaluate((nav) =>
+        [nav.querySelector(".address-root"), ...nav.querySelectorAll("li")]
+          .map((element) => {
+            const before = getComputedStyle(element!, "::before").content;
+            const separator = before === "none" ? "" : JSON.parse(before.split(" / ")[0]!);
+            return separator + element!.textContent!.trim();
+          })
+          .join(""),
+      ),
+    ).toBe("C:¥posts¥abbey-road.html");
     await expect(address.locator(".address-root")).toHaveText("C:¥");
     await expect(address.getByText("ongaku.review")).toHaveCount(0);
     const home = address.getByRole("link", { name: "ホーム" });
@@ -651,8 +663,12 @@ test.describe("タグページ", () => {
     const separator = await address
       .locator("li")
       .nth(1)
-      .evaluate((element) => getComputedStyle(element, "::before").content);
-    expect(separator).toMatch(/^"\u00a5"(?: \/ "")?$/u);
+      .evaluate((element) => {
+        const style = getComputedStyle(element, "::before");
+        return { content: style.content, margin: [style.marginLeft, style.marginRight] };
+      });
+    expect(separator.content).toMatch(/^"\u00a5"(?: \/ "")?$/u);
+    expect(separator.margin).toEqual(["0px", "0px"]);
 
     const list = page.getByRole("table", { name: "タグ「#ロック」の記事" });
     await expect(list.getByRole("columnheader")).toHaveText(["Name", "Date created"]);

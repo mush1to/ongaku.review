@@ -28,7 +28,7 @@ const post: PageData = {
   path: "/posts/abbey-road",
   title: "「アビイ・ロード」を2026年に聴く",
   description: "最後の一音まで聴く。",
-  breadcrumbs: [{ label: "abbey-road.html" }],
+  breadcrumbs: [{ label: "posts" }, { label: "abbey-road.html" }],
   isPost: true,
   created: "2026-10-25",
   updated: "2026-10-26",

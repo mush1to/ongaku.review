@@ -124,7 +124,9 @@ export const aboutPage = (doc: DocPage): PageData => ({
   title: doc.title,
   description: doc.description,
   // The address bar presents a document page as a file name.
-  breadcrumbs: [{ label: `${pathSegments(doc.path).at(-1)}.html` }],
+  breadcrumbs: pathSegments(doc.path).map((label, index, segments) => ({
+    label: index === segments.length - 1 ? `${label}.html` : label,
+  })),
   created: doc.created,
   updated: doc.updated,
   isPost: false,
