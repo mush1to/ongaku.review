@@ -184,6 +184,8 @@ describe("Dev server legacy URL redirect", () => {
     ["/about.html?q=1", "/about?q=1"],
     ["/posts/abbey-road/", "/posts/abbey-road"],
     ["/tags/%E3%83%AD%E3%83%83%E3%82%AF.html?q=1", "/tags/%E3%83%AD%E3%83%83%E3%82%AF?q=1"],
+    ["/.//about/?q=1", "/about?q=1"],
+    ["/.//about.html", "/about"],
   ])("redirects %s to %s", async (source, target) => {
     const result = await requestThroughDevServer(source);
 
@@ -206,6 +208,23 @@ describe("Dev server legacy URL redirect", () => {
       expect(result.passedThrough).toBe(true);
     },
   );
+
+  it.each([
+    "//index.html",
+    "//about/",
+    "//about/?q=1",
+    "///x.html",
+    "/.//index.html",
+    "/.//about/?q=1",
+    "/\\evil.com/",
+    "/./\\evil.com/",
+    "/.//evil.com/",
+  ])("does not send a protocol-relative Location for %s", async (source) => {
+    const result = await requestThroughDevServer(source);
+
+    if (result.statusCode === 301) expect(result.headers.get("Location")).toMatch(/^\/(?!\/)/);
+    else expect(result.headers.has("Location")).toBe(false);
+  });
 
   it("passes an unparsable URL to the next middleware as an error", async () => {
     const result = await requestThroughDevServer("//");

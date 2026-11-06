@@ -3,9 +3,12 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 export function legacyUrlTarget(pathname: string) {
   if (pathname === "/" || pathname === "/404.html") return undefined;
   if (pathname === "/index.html") return "/";
-  if (pathname.endsWith("/")) return pathname.replace(/\/+$/, "");
-  if (pathname.endsWith(".html")) return pathname.slice(0, -".html".length);
-  return undefined;
+  const target = pathname.endsWith("/")
+    ? pathname.replace(/\/+$/, "")
+    : pathname.endsWith(".html")
+      ? pathname.slice(0, -".html".length)
+      : undefined;
+  return target?.replace(/^\/+/, "/");
 }
 
 export function createLegacyUrlRedirect(targetExists: (target: string) => Promise<boolean>) {
