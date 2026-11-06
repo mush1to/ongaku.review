@@ -244,6 +244,17 @@ img {
   text-decoration: underline;
 }
 
+.main-nav,
+.site-footer,
+.search-form label,
+.search-form .xp-button,
+.search-pagination,
+.file-table th,
+.pagination,
+.document-date-label {
+  font-family: var(--font-title);
+}
+
 .main-nav {
   margin-left: auto;
 }
@@ -373,7 +384,6 @@ img {
 }
 
 .address-bar li + li::before {
-  margin: 0 0.5rem;
   color: var(--color-muted);
   content: "¥";
   content: "¥" / "";

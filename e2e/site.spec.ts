@@ -9,7 +9,7 @@ const mainNavigation = (page: Page) =>
 
 const openSearchWindow = async (page: Page) => {
   await mainNavigation(page).getByRole("button", { name: "Search" }).click();
-  const searchWindow = page.getByRole("dialog", { name: "検索" });
+  const searchWindow = page.getByRole("dialog", { name: "Search" });
   await expect(searchWindow).toBeVisible();
   return searchWindow;
 };
@@ -62,9 +62,9 @@ test.describe("トップページ", () => {
         .toBe(true);
   });
 
-  test("記事を名前と作成日時の一覧で表示する", async ({ page }) => {
+  test("記事をNameとDate createdの一覧で表示する", async ({ page }) => {
     const list = page.getByRole("table", { name: "記事一覧" });
-    await expect(list.getByRole("columnheader")).toHaveText(["名前", "作成日時"]);
+    await expect(list.getByRole("columnheader")).toHaveText(["Name", "Date created"]);
     const row = list.getByRole("row").filter({ hasText: "アビイ・ロード" });
     await expect(
       row.getByRole("link", { name: "「アビイ・ロード」を2026年に聴く" }),
@@ -217,10 +217,12 @@ test.describe("アイコン", () => {
 });
 
 test.describe("2ページ目以降", () => {
-  test("アドレスバーにページ数を表示しない", async ({ page }) => {
+  test("アドレスバーにURLのパスを区切りごとに表示し、ページ名を表示しない", async ({ page }) => {
     await page.goto("/page/2");
     const address = page.getByRole("navigation", { name: "現在地" });
-    await expect(address.locator("[aria-current='page']")).toHaveText("C:¥");
+    await expect(address.locator(".address-root")).toHaveText("C:¥");
+    await expect(address.locator("li")).toHaveText(["page", "2"]);
+    await expect(address.locator("[aria-current='page']")).toHaveText("2");
     await expect(address.getByText("2ページ目")).toHaveCount(0);
     await expect(mainNavigation(page).getByRole("link", { name: "Home" })).toHaveAttribute(
       "aria-current",
@@ -229,7 +231,7 @@ test.describe("2ページ目以降", () => {
   });
 
   test("両ページでページ送りのナビゲーションを表示する", async ({ page }) => {
-    const pagination = page.getByRole("navigation", { name: "ページ送り" });
+    const pagination = page.getByRole("navigation", { name: "Pages", exact: true });
 
     await page.goto("/");
     await expect(pagination).toBeVisible();
@@ -248,7 +250,7 @@ test.describe("2ページ目以降", () => {
 });
 
 test.describe("一覧のページ送り", () => {
-  const pagination = (page: Page) => page.getByRole("navigation", { name: "ページ送り" });
+  const pagination = (page: Page) => page.getByRole("navigation", { name: "Pages", exact: true });
   const pathname = (page: Page) => new URL(page.url()).pathname;
 
   for (const list of [
@@ -266,8 +268,8 @@ test.describe("一覧のページ送り", () => {
         test("ページ番号のリンクで各ページへ移動でき、ページ選択を表示しない", async ({ page }) => {
           await page.goto(list.first);
           const nav = pagination(page);
-          const previous = nav.getByRole("link", { name: "前へ", exact: true });
-          const next = nav.getByRole("link", { name: "次へ", exact: true });
+          const previous = nav.getByRole("link", { name: "Back", exact: true });
+          const next = nav.getByRole("link", { name: "Next", exact: true });
           await expect(nav.locator("[data-pagination-page]")).toBeHidden();
           await expect(nav.locator("[data-pagination-total]")).toBeHidden();
           await expect(previous).toHaveAttribute("aria-disabled", "true");
@@ -294,18 +296,18 @@ test.describe("一覧のページ送り", () => {
           await expect.poll(() => pathname(page)).toBe(list.first);
         });
 
-        test("Tabで無効な前へ・次へに止まらず、ページ番号のリンクを順に移る", async ({ page }) => {
+        test("Tabで無効なBack・Nextに止まらず、ページ番号のリンクを順に移る", async ({ page }) => {
           const nav = pagination(page);
           await page.goto(list.first);
           await page.locator(".file-link").last().focus();
-          for (const name of ["1", "2", "次へ"]) {
+          for (const name of ["1", "2", "Next"]) {
             await page.keyboard.press("Tab");
             await expect(nav.getByRole("link", { name, exact: true })).toBeFocused();
           }
 
           await page.goto(list.second);
           await page.locator(".file-link").last().focus();
-          for (const name of ["前へ", "1", "2"]) {
+          for (const name of ["Back", "1", "2"]) {
             await page.keyboard.press("Tab");
             await expect(nav.getByRole("link", { name, exact: true })).toBeFocused();
           }
@@ -321,7 +323,7 @@ test.describe("一覧のページ送り", () => {
       }) => {
         await page.goto(list.first);
         const nav = pagination(page);
-        const pageSelect = nav.getByRole("combobox", { name: "ページ（全 2 ページ）" });
+        const pageSelect = nav.getByRole("combobox", { name: "Page (of 2)" });
         const pageTotal = nav.locator("[data-pagination-total]");
         const pageLinks = nav.locator("[data-pagination-links]");
         await expect(pageSelect).toBeVisible();
@@ -329,7 +331,7 @@ test.describe("一覧のページ送り", () => {
         await expect(pageSelect.locator("option")).toHaveText(["1", "2"]);
         await expect(pageSelect.locator("option:checked")).toHaveText("1");
         await expect(pageTotal).toBeVisible();
-        await expect(pageTotal).toHaveText("/ 2");
+        await expect(pageTotal).toHaveText("of 2");
         await expect(pageTotal).toHaveAttribute("aria-hidden", "true");
         await expect(pageLinks).toBeHidden();
         await expect(pageLinks.locator("a[href]")).toHaveCount(2);
@@ -348,7 +350,7 @@ test.describe("一覧のページ送り", () => {
       test("bfcacheから再表示したときもページ選択を現在のページに戻す", async ({ page }) => {
         await page.goto(list.second);
         const pageSelect = pagination(page).getByRole("combobox", {
-          name: "ページ（全 2 ページ）",
+          name: "Page (of 2)",
         });
         await pageSelect.evaluate((select: HTMLSelectElement, first) => {
           select.value = first;
@@ -357,20 +359,20 @@ test.describe("一覧のページ送り", () => {
         await expect(pageSelect).toHaveValue(list.second);
       });
 
-      test("Tabで無効な前へ・次へに止まらず、ページ選択と有効な側に移る", async ({ page }) => {
+      test("Tabで無効なBack・Nextに止まらず、ページ選択と有効な側に移る", async ({ page }) => {
         const nav = pagination(page);
-        const pageSelect = nav.getByRole("combobox", { name: "ページ（全 2 ページ）" });
+        const pageSelect = nav.getByRole("combobox", { name: "Page (of 2)" });
         await page.goto(list.first);
         await page.locator(".file-link").last().focus();
         await page.keyboard.press("Tab");
         await expect(pageSelect).toBeFocused();
         await page.keyboard.press("Tab");
-        await expect(nav.getByRole("link", { name: "次へ", exact: true })).toBeFocused();
+        await expect(nav.getByRole("link", { name: "Next", exact: true })).toBeFocused();
 
         await page.goto(list.second);
         await page.locator(".file-link").last().focus();
         await page.keyboard.press("Tab");
-        await expect(nav.getByRole("link", { name: "前へ", exact: true })).toBeFocused();
+        await expect(nav.getByRole("link", { name: "Back", exact: true })).toBeFocused();
         await page.keyboard.press("Tab");
         await expect(pageSelect).toBeFocused();
         await page.keyboard.press("Tab");
@@ -379,7 +381,7 @@ test.describe("一覧のページ送り", () => {
         );
       });
 
-      test("前へ・ページ選択・総ページ数・次へを検索ウィンドウのページ送りと同じ見た目にする", async ({
+      test("Back・ページ選択・総ページ数・Nextを検索ウィンドウのページ送りと同じ見た目にする", async ({
         page,
       }) => {
         const looks = (selector: string) =>
@@ -416,7 +418,7 @@ test.describe("一覧のページ送り", () => {
         await page.goto(list.first);
         const listLooks = await looks("nav[data-pagination]");
         const searchWindow = await openSearchWindow(page);
-        await searchWindow.getByRole("searchbox", { name: "キーワード" }).fill("ア");
+        await searchWindow.getByRole("searchbox", { name: "Keyword" }).fill("ア");
         await expect(searchWindow.getByRole("status")).toHaveText(
           "「ア」の検索結果：12件（1/2 ページ）",
         );
@@ -496,7 +498,7 @@ test.describe("一覧のページ送り", () => {
     await expect(page).toHaveTitle(`#${pagedTag} | ongaku.review`);
     await expect(heading).toHaveText(`#${pagedTag}`);
     await expect(page.locator(".file-link")).toHaveCount(site.postsPerPage);
-    const firstAddress = (await address.textContent())!;
+    await expect(address.locator("li")).toHaveText(["tags", ...pagedTag.split("/")]);
 
     await page.goto(`${first}/page/2`);
     expect(decodeURIComponent(pathname(page))).toBe(`/tags/${pagedTag}/page/2`);
@@ -507,8 +509,8 @@ test.describe("一覧のページ送り", () => {
       "href",
       `${site.url}${first}/page/2`,
     );
-    await expect(address).toHaveText(firstAddress);
-    await expect(address).toContainText(`#${pagedTag}`);
+    await expect(address.locator("li")).toHaveText(["tags", ...pagedTag.split("/"), "page", "2"]);
+    await expect(address.locator("[aria-current='page']")).toHaveText("2");
     await expect(address.getByText("2ページ目")).toHaveCount(0);
     for (const path of [`${first}/page/1`, `${first}/page/3`])
       expect((await request.get(path)).status(), path).toBe(404);
@@ -552,7 +554,7 @@ test.describe("スマートフォン表示", () => {
     const windowBox = await searchWindow.boundingBox();
     expect(windowBox?.x).toBeGreaterThanOrEqual(0);
     expect((windowBox?.x ?? 0) + (windowBox?.width ?? Infinity)).toBeLessThanOrEqual(375);
-    const closeBox = await searchWindow.getByRole("button", { name: "閉じる" }).boundingBox();
+    const closeBox = await searchWindow.getByRole("button", { name: "Close" }).boundingBox();
     expect(closeBox?.width).toBeGreaterThanOrEqual(44);
     expect(closeBox?.height).toBeGreaterThanOrEqual(44);
   });
@@ -579,7 +581,7 @@ test.describe("記事ページ", () => {
     expect((await request.get("/abbey-road/")).status()).toBe(404);
   });
 
-  test("本文と作成日時・更新日時を表示し、アドレスバーのフォルダからトップへ戻れる", async ({
+  test("本文とDate created・Date modifiedを表示し、アドレスバーのフォルダからトップへ戻れる", async ({
     page,
   }) => {
     await page.goto("/posts/abbey-road");
@@ -588,17 +590,27 @@ test.describe("記事ページ", () => {
     await expect(
       page.getByRole("heading", { level: 1, name: "「アビイ・ロード」を2026年に聴く" }),
     ).toBeVisible();
-    const created = page.locator(".document-date").filter({ hasText: "作成日時" });
+    const created = page.locator(".document-date").filter({ hasText: "Date created" });
     await expect(created.locator("time")).toHaveAttribute("datetime", "2026-10-25");
     await expect(created.locator("time")).toHaveText("2026/10/25");
-    const updated = page.locator(".document-date").filter({ hasText: "更新日時" });
+    const updated = page.locator(".document-date").filter({ hasText: "Date modified" });
     await expect(updated.locator("time")).toHaveAttribute("datetime", "2026-10-25");
     await expect(updated.locator("time")).toHaveText("2026/10/25");
 
     const address = page.getByRole("navigation", { name: "現在地" });
-    await expect(address.locator("[aria-current='page']")).toHaveText(
-      "「アビイ・ロード」を2026年に聴く.html",
-    );
+    await expect(address.locator("li")).toHaveText(["posts", "abbey-road.html"]);
+    await expect(address.locator("[aria-current='page']")).toHaveText("abbey-road.html");
+    expect(
+      await address.evaluate((nav) =>
+        [nav.querySelector(".address-root"), ...nav.querySelectorAll("li")]
+          .map((element) => {
+            const before = getComputedStyle(element!, "::before").content;
+            const separator = before === "none" ? "" : JSON.parse(before.split(" / ")[0]!);
+            return separator + element!.textContent!.trim();
+          })
+          .join(""),
+      ),
+    ).toBe("C:¥posts¥abbey-road.html");
     await expect(address.locator(".address-root")).toHaveText("C:¥");
     await expect(address.getByText("ongaku.review")).toHaveCount(0);
     const home = address.getByRole("link", { name: "ホーム" });
@@ -646,15 +658,20 @@ test.describe("タグページ", () => {
     );
     const address = page.getByRole("navigation", { name: "現在地" });
     await expect(address.locator(".address-root")).toHaveText("C:¥");
-    await expect(address).toContainText("#ロック");
+    await expect(address.locator("li")).toHaveText(["tags", "ロック"]);
+    await expect(address.locator("[aria-current='page']")).toHaveText("ロック");
     const separator = await address
       .locator("li")
       .nth(1)
-      .evaluate((element) => getComputedStyle(element, "::before").content);
-    expect(separator).toMatch(/^"\u00a5"(?: \/ "")?$/u);
+      .evaluate((element) => {
+        const style = getComputedStyle(element, "::before");
+        return { content: style.content, margin: [style.marginLeft, style.marginRight] };
+      });
+    expect(separator.content).toMatch(/^"\u00a5"(?: \/ "")?$/u);
+    expect(separator.margin).toEqual(["0px", "0px"]);
 
     const list = page.getByRole("table", { name: "タグ「#ロック」の記事" });
-    await expect(list.getByRole("columnheader")).toHaveText(["名前", "作成日時"]);
+    await expect(list.getByRole("columnheader")).toHaveText(["Name", "Date created"]);
     await expect(list.locator(".file-link")).toHaveText([
       "「アビイ・ロード」を2026年に聴く",
       "「OK Computer」の静かな怒り",
@@ -662,7 +679,7 @@ test.describe("タグページ", () => {
     ]);
     await expect(list.locator(".file-link").first()).toHaveAttribute("href", "/posts/abbey-road");
     await expect(list.locator(".file-date time").first()).toHaveText("2026/10/25");
-    await expect(page.getByRole("navigation", { name: "ページ送り" })).toBeHidden();
+    await expect(page.getByRole("navigation", { name: "Pages", exact: true })).toBeHidden();
     await page.reload();
     await expect(list.locator(".file-link")).toHaveCount(3);
   });
@@ -881,7 +898,7 @@ test.describe("記事ページの構成", () => {
   test("タグ検索は全角の#と表記ゆれを同じタグとして扱う", async ({ page }) => {
     await page.goto("/");
     const searchWindow = await openSearchWindow(page);
-    const searchbox = searchWindow.getByRole("searchbox", { name: "キーワード" });
+    const searchbox = searchWindow.getByRole("searchbox", { name: "Keyword" });
     await searchbox.fill("＃ｼﾞｬｽﾞ");
     await expect(searchWindow.getByRole("status")).toHaveText("タグ「#ｼﾞｬｽﾞ」の記事：1件");
     await expect(searchWindow.getByRole("link", { name: "「Kind of Blue」の余白" })).toBeVisible();
@@ -978,7 +995,7 @@ test.describe("Aboutページ", () => {
     await expect(page.locator(".document-date")).toHaveCount(0);
     await expect(
       page.getByRole("navigation", { name: "現在地" }).locator("[aria-current='page']"),
-    ).toHaveText("About.html");
+    ).toHaveText("about.html");
     await expect(mainNavigation(page).getByRole("link", { name: "Home" })).not.toHaveAttribute(
       "aria-current",
     );
@@ -1018,9 +1035,7 @@ test.describe("非公開記事", () => {
   test("非公開本文の検索では結果が出ない", async ({ page }) => {
     await page.goto("/");
     const searchWindow = await openSearchWindow(page);
-    await searchWindow
-      .getByRole("searchbox", { name: "キーワード" })
-      .fill("UnpublishedFixtureBody");
+    await searchWindow.getByRole("searchbox", { name: "Keyword" }).fill("UnpublishedFixtureBody");
     await expect(searchWindow.getByRole("status")).toContainText(
       "一致するページは見つかりませんでした。",
     );
@@ -1032,10 +1047,10 @@ test.describe("検索ウィンドウ", () => {
   test("ページを移動せずに開き、入力したキーワードに一致する記事を表示する", async ({ page }) => {
     await page.goto("/posts/kind-of-blue");
     const searchWindow = await openSearchWindow(page);
-    const searchbox = searchWindow.getByRole("searchbox", { name: "キーワード" });
+    const searchbox = searchWindow.getByRole("searchbox", { name: "Keyword" });
     await expect(searchbox).toBeFocused();
     await searchbox.fill("アビイ");
-    await searchWindow.getByRole("button", { name: "検索" }).click();
+    await searchWindow.getByRole("button", { name: "Search", exact: true }).click();
 
     await expect(searchWindow.getByRole("status")).toContainText("「アビイ」の検索結果");
     const result = searchWindow.getByRole("link", { name: "「アビイ・ロード」を2026年に聴く" });
@@ -1052,7 +1067,7 @@ test.describe("検索ウィンドウ", () => {
     await page.goto("/");
     const searchWindow = await openSearchWindow(page);
     const emptyBox = (await searchWindow.boundingBox())!;
-    await searchWindow.getByRole("searchbox", { name: "キーワード" }).fill("ア");
+    await searchWindow.getByRole("searchbox", { name: "Keyword" }).fill("ア");
     await expect(searchWindow.getByRole("status")).toContainText("「ア」の検索結果");
     const filledBox = (await searchWindow.boundingBox())!;
 
@@ -1082,7 +1097,7 @@ test.describe("検索ウィンドウ", () => {
     const searchButton = mainNavigation(page).getByRole("button", { name: "Search" });
 
     const searchWindow = await openSearchWindow(page);
-    await searchWindow.getByRole("button", { name: "閉じる" }).click();
+    await searchWindow.getByRole("button", { name: "Close" }).click();
     await expect(searchWindow).toBeHidden();
     await expect(searchButton).toBeFocused();
 
@@ -1092,10 +1107,10 @@ test.describe("検索ウィンドウ", () => {
     await expect(searchButton).toBeFocused();
 
     await openSearchWindow(page);
-    await searchWindow.getByRole("heading", { name: "検索" }).click();
+    await searchWindow.getByRole("heading", { name: "Search" }).click();
     await expect(searchWindow).toBeVisible();
     await searchWindow
-      .getByRole("searchbox", { name: "キーワード" })
+      .getByRole("searchbox", { name: "Keyword" })
       .dispatchEvent("keydown", { key: "Escape", isComposing: true });
     await expect(searchWindow).toBeVisible();
     await page.mouse.click(10, 10);
@@ -1105,7 +1120,7 @@ test.describe("検索ウィンドウ", () => {
   test("変換中の標準Escとcancelを抑止し、変換終了後のEscで閉じる", async ({ page }) => {
     await page.goto("/");
     const searchWindow = await openSearchWindow(page);
-    const input = searchWindow.getByRole("searchbox", { name: "キーワード" });
+    const input = searchWindow.getByRole("searchbox", { name: "Keyword" });
     await input.dispatchEvent("compositionstart");
     await page.keyboard.press("Escape");
     await expect(searchWindow).toBeVisible();
@@ -1124,9 +1139,9 @@ test.describe("検索ウィンドウ", () => {
     await page.goto("/");
     const searchWindow = await openSearchWindow(page);
     await searchWindow
-      .getByRole("searchbox", { name: "キーワード" })
+      .getByRole("searchbox", { name: "Keyword" })
       .dispatchEvent("compositionstart");
-    await searchWindow.getByRole("button", { name: "閉じる" }).click();
+    await searchWindow.getByRole("button", { name: "Close" }).click();
     await expect(searchWindow).toBeHidden();
     await openSearchWindow(page);
     await page.keyboard.press("Escape");
@@ -1142,7 +1157,7 @@ test.describe("検索ウィンドウ", () => {
     });
     await page.goto("/");
     const searchWindow = await openSearchWindow(page);
-    const searchbox = searchWindow.getByRole("searchbox", { name: "キーワード" });
+    const searchbox = searchWindow.getByRole("searchbox", { name: "Keyword" });
     await searchbox.fill("アビイ");
     await expect(searchWindow.getByRole("status")).toContainText("検索できませんでした");
 
@@ -1173,7 +1188,7 @@ test.describe("検索ウィンドウ", () => {
 
     const searchWindow = await openSearchWindow(page);
     await expect(searchWindow.getByRole("status")).toContainText("再読み込みしてください");
-    await searchWindow.getByRole("button", { name: "閉じる" }).click();
+    await searchWindow.getByRole("button", { name: "Close" }).click();
     await mainNavigation(page).getByRole("button", { name: "Search" }).click();
     await expect(searchWindow.getByRole("status")).toHaveText("");
     expect(requests).toBeGreaterThanOrEqual(2);
@@ -1207,7 +1222,7 @@ test.describe("検索ウィンドウ", () => {
   }) => {
     await page.goto("/");
     const searchWindow = await openSearchWindow(page);
-    const searchbox = searchWindow.getByRole("searchbox", { name: "キーワード" });
+    const searchbox = searchWindow.getByRole("searchbox", { name: "Keyword" });
     const result = searchWindow.getByRole("link", { name: "「アビイ・ロード」を2026年に聴く" });
     await searchbox.fill("アビイ");
     await expect(result).toBeVisible();
@@ -1229,23 +1244,23 @@ test.describe("検索ウィンドウ", () => {
   test("結果を1ページ10件ずつ表示し、ページ送りですべての結果を確認できる", async ({ page }) => {
     await page.goto("/");
     const searchWindow = await openSearchWindow(page);
-    await searchWindow.getByRole("searchbox", { name: "キーワード" }).fill("ア");
+    await searchWindow.getByRole("searchbox", { name: "Keyword" }).fill("ア");
     const status = searchWindow.getByRole("status");
     await expect(status).toHaveText("「ア」の検索結果：12件（1/2 ページ）");
     const links = searchWindow.locator("[data-search-results] .file-link");
     await expect(links).toHaveCount(10);
-    const pagination = searchWindow.getByRole("navigation", { name: "検索結果のページ送り" });
-    const previous = pagination.getByRole("button", { name: "前へ", exact: true });
-    const next = pagination.getByRole("button", { name: "次へ", exact: true });
-    const pageSelect = pagination.getByRole("combobox", { name: "ページ" });
+    const pagination = searchWindow.getByRole("navigation", { name: "Search results pages" });
+    const previous = pagination.getByRole("button", { name: "Back", exact: true });
+    const next = pagination.getByRole("button", { name: "Next", exact: true });
+    const pageSelect = pagination.getByRole("combobox", { name: "Page" });
     const pageTotal = pagination.locator("[data-search-page-total]");
     await expect(previous).toHaveAttribute("aria-disabled", "true");
     await expect(next).toHaveAttribute("aria-disabled", "false");
     await expect(pageSelect).toHaveValue("1");
     await expect(pageSelect.locator("option")).toHaveCount(2);
     await expect(pageSelect.locator("option:checked")).toHaveText("1");
-    await expect(pageSelect).toHaveAttribute("aria-label", "ページ（全 2 ページ）");
-    await expect(pageTotal).toHaveText("/ 2");
+    await expect(pageSelect).toHaveAttribute("aria-label", "Page (of 2)");
+    await expect(pageTotal).toHaveText("of 2");
     const windowBox = (await searchWindow.boundingBox())!;
     const pagePaths = () => links.evaluateAll((items) => items.map((a) => a.getAttribute("href")));
     const firstPage = await pagePaths();
@@ -1255,7 +1270,7 @@ test.describe("検索ウィンドウ", () => {
     await expect(next).toBeFocused();
     await expect(pageSelect).toHaveValue("2");
     await expect(pageSelect.locator("option:checked")).toHaveText("2");
-    await expect(pageTotal).toHaveText("/ 2");
+    await expect(pageTotal).toHaveText("of 2");
     await expect(links).toHaveCount(2);
     expect(new Set([...firstPage, ...(await pagePaths())]).size).toBe(12);
     await expect(previous).toHaveAttribute("aria-disabled", "false");
@@ -1296,15 +1311,15 @@ test.describe("検索ウィンドウ", () => {
     expect(await searchWindow.boundingBox()).toEqual(windowBox);
   });
 
-  test("Tabの順序を入力・検索・結果・前へ・ページ選択・次へにする", async ({ page }) => {
+  test("Tabの順序を入力・Search・結果・Back・ページ選択・Nextにする", async ({ page }) => {
     await page.goto("/");
     const searchWindow = await openSearchWindow(page);
-    const searchbox = searchWindow.getByRole("searchbox", { name: "キーワード" });
+    const searchbox = searchWindow.getByRole("searchbox", { name: "Keyword" });
     const status = searchWindow.getByRole("status");
-    const pagination = searchWindow.getByRole("navigation", { name: "検索結果のページ送り" });
-    const previous = pagination.getByRole("button", { name: "前へ", exact: true });
-    const pageSelect = pagination.getByRole("combobox", { name: "ページ" });
-    const next = pagination.getByRole("button", { name: "次へ", exact: true });
+    const pagination = searchWindow.getByRole("navigation", { name: "Search results pages" });
+    const previous = pagination.getByRole("button", { name: "Back", exact: true });
+    const pageSelect = pagination.getByRole("combobox", { name: "Page" });
+    const next = pagination.getByRole("button", { name: "Next", exact: true });
     await searchbox.fill("ア");
     await expect(status).toHaveText("「ア」の検索結果：12件（1/2 ページ）");
     await next.click();
@@ -1315,7 +1330,7 @@ test.describe("検索ウィンドウ", () => {
     const links = searchWindow.locator("[data-search-results] .file-link");
     await expect(links).toHaveCount(2);
     await page.keyboard.press("Tab");
-    await expect(searchWindow.getByRole("button", { name: "検索", exact: true })).toBeFocused();
+    await expect(searchWindow.getByRole("button", { name: "Search", exact: true })).toBeFocused();
     for (let index = 0; index < 2; index++) {
       await page.keyboard.press("Tab");
       await expect(links.nth(index)).toBeFocused();
@@ -1328,15 +1343,15 @@ test.describe("検索ウィンドウ", () => {
     await expect(next).toBeFocused();
   });
 
-  test("ページ送り行を中央に寄せ、前へ・ページ選択・次へを1行に並べる", async ({ page }) => {
+  test("ページ送り行を中央に寄せ、Back・ページ選択・Nextを1行に並べる", async ({ page }) => {
     await page.setViewportSize({ width: 375, height: 812 });
     await page.goto("/");
     const searchWindow = await openSearchWindow(page);
-    await searchWindow.getByRole("searchbox", { name: "キーワード" }).fill("ア");
+    await searchWindow.getByRole("searchbox", { name: "Keyword" }).fill("ア");
     await expect(searchWindow.getByRole("status")).toHaveText(
       "「ア」の検索結果：12件（1/2 ページ）",
     );
-    const row = searchWindow.getByRole("navigation", { name: "検索結果のページ送り" });
+    const row = searchWindow.getByRole("navigation", { name: "Search results pages" });
     const metrics = await row.evaluate((element) => {
       const box = element.getBoundingClientRect();
       const rects = [...element.children].map((child) => child.getBoundingClientRect());
@@ -1371,27 +1386,27 @@ test.describe("検索ウィンドウ", () => {
   }) => {
     await page.goto("/");
     const searchWindow = await openSearchWindow(page);
-    const searchbox = searchWindow.getByRole("searchbox", { name: "キーワード" });
+    const searchbox = searchWindow.getByRole("searchbox", { name: "Keyword" });
     const status = searchWindow.getByRole("status");
     const pagination = searchWindow.locator("[data-search-pagination]");
     const pageSelect = pagination.locator("[data-search-page]");
     const pageTotal = pagination.locator("[data-search-page-total]");
     await searchbox.fill("ア");
-    await pagination.getByRole("button", { name: "次へ", exact: true }).click();
+    await pagination.getByRole("button", { name: "Next", exact: true }).click();
     await expect(status).toHaveText("「ア」の検索結果：12件（2/2 ページ）");
     await expect(pageSelect).toHaveValue("2");
 
     await searchbox.fill("Radiohead");
     await expect(status).toHaveText("「Radiohead」の検索結果：2件");
     await expect(pagination).toBeHidden();
-    await expect(pageSelect).toHaveAttribute("aria-label", "ページ（全 1 ページ）");
+    await expect(pageSelect).toHaveAttribute("aria-label", "Page (of 1)");
     await expect(pageSelect).toHaveValue("1");
-    await expect(pageTotal).toHaveText("/ 1");
+    await expect(pageTotal).toHaveText("of 1");
     await searchbox.fill("ア");
     await expect(status).toHaveText("「ア」の検索結果：12件（1/2 ページ）");
     await expect(pagination).toBeVisible();
-    await expect(pageSelect).toHaveAttribute("aria-label", "ページ（全 2 ページ）");
-    await expect(pageTotal).toHaveText("/ 2");
+    await expect(pageSelect).toHaveAttribute("aria-label", "Page (of 2)");
+    await expect(pageTotal).toHaveText("of 2");
     await searchbox.fill("雨");
     await expect(status).toHaveText("「雨」に一致するページは見つかりませんでした。");
     await expect(pagination).toBeHidden();
@@ -1406,7 +1421,7 @@ test.describe("検索ウィンドウ", () => {
       const page = await browser.newPage({ baseURL, viewport: { width: 1280, height: 800 } });
       await page.goto("/");
       const searchWindow = await openSearchWindow(page);
-      const searchbox = searchWindow.getByRole("searchbox", { name: "キーワード" });
+      const searchbox = searchWindow.getByRole("searchbox", { name: "Keyword" });
       const status = searchWindow.getByRole("status");
       const measure = () =>
         searchWindow.locator("[data-search-results]").evaluate((list: HTMLElement) => ({
@@ -1437,7 +1452,7 @@ test.describe("検索ウィンドウ", () => {
     await page.setViewportSize({ width: 1280, height: 800 });
     await page.goto("/");
     const searchWindow = await openSearchWindow(page);
-    await searchWindow.getByRole("searchbox", { name: "キーワード" }).fill("ア");
+    await searchWindow.getByRole("searchbox", { name: "Keyword" }).fill("ア");
     await expect(searchWindow.getByRole("status")).toHaveText(
       "「ア」の検索結果：12件（1/2 ページ）",
     );
@@ -1473,11 +1488,11 @@ test.describe("検索ウィンドウ", () => {
     });
     await page.goto("/");
     const searchWindow = await openSearchWindow(page);
-    await searchWindow.getByRole("searchbox", { name: "キーワード" }).fill("#ロック");
+    await searchWindow.getByRole("searchbox", { name: "Keyword" }).fill("#ロック");
     await expect(searchWindow.getByRole("status")).toHaveText(`タグ「#ロック」の記事：${total}件`);
     await expect(searchWindow.locator("[data-search-results] .file-link")).toHaveCount(total);
     await expect(
-      searchWindow.getByRole("navigation", { name: "検索結果のページ送り" }),
+      searchWindow.getByRole("navigation", { name: "Search results pages" }),
     ).toBeHidden();
   });
 });
@@ -1553,5 +1568,8 @@ test.describe("404ページ", () => {
       page.getByRole("heading", { level: 1, name: "ページが見つかりません" }),
     ).toBeVisible();
     await expect(page.getByText("404", { exact: true })).toBeVisible();
+    await expect(
+      page.getByRole("navigation", { name: "現在地" }).locator("[aria-current='page']"),
+    ).toHaveText("404.html");
   });
 });

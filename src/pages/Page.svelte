@@ -112,8 +112,8 @@
               </caption>
               <thead>
                 <tr>
-                  <th scope="col">名前</th>
-                  <th scope="col" aria-sort="descending">作成日時</th>
+                  <th scope="col">Name</th>
+                  <th scope="col" aria-sort="descending">Date created</th>
                 </tr>
               </thead>
               <tbody>
@@ -144,14 +144,14 @@
           {/if}
         </div>
         {#if page.pagination}
-          <nav class="pagination" aria-label="ページ送り" data-pagination>
+          <nav class="pagination" aria-label="Pages" data-pagination>
             {#if page.pagination.previous}
               <a class="xp-button" href={page.pagination.previous} rel="prev">
-                <span aria-hidden="true">&lt;</span> 前へ
+                <span aria-hidden="true">&lt;</span> Back
               </a>
             {:else}
               <a class="xp-button" role="link" aria-disabled="true">
-                <span aria-hidden="true">&lt;</span> 前へ
+                <span aria-hidden="true">&lt;</span> Back
               </a>
             {/if}
             <ul class="pagination-links" data-pagination-links>
@@ -168,7 +168,7 @@
             </ul>
             <select
               class="xp-button pagination-page"
-              aria-label="ページ（全 {page.pagination.pages.length} ページ）"
+              aria-label="Page (of {page.pagination.pages.length})"
               data-pagination-page
               hidden
             >
@@ -179,15 +179,15 @@
               {/each}
             </select>
             <span class="pagination-total" aria-hidden="true" data-pagination-total hidden>
-              / {page.pagination.pages.length}
+              of {page.pagination.pages.length}
             </span>
             {#if page.pagination.next}
               <a class="xp-button" href={page.pagination.next} rel="next">
-                次へ <span aria-hidden="true">&gt;</span>
+                Next <span aria-hidden="true">&gt;</span>
               </a>
             {:else}
               <a class="xp-button" role="link" aria-disabled="true">
-                次へ <span aria-hidden="true">&gt;</span>
+                Next <span aria-hidden="true">&gt;</span>
               </a>
             {/if}
           </nav>
@@ -210,13 +210,13 @@
             {#snippet dates()}
               {#if page.created}
                 <p class="document-date">
-                  <span class="document-date-label">作成日時</span>
+                  <span class="document-date-label">Date created</span>
                   <time datetime={page.created}>{formatDate(page.created)}</time>
                 </p>
               {/if}
               {#if page.updated}
                 <p class="document-date">
-                  <span class="document-date-label">更新日時</span>
+                  <span class="document-date-label">Date modified</span>
                   <time datetime={page.updated}>{formatDate(page.updated)}</time>
                 </p>
               {/if}
@@ -344,34 +344,34 @@
   <div class="search-window-frame">
     <div class="title-bar">
       <img class="title-bar-icon" src={icons.magnifier} alt="" width="16" height="16" />
-      <h2 class="title-bar-text" id="search-window-title">検索</h2>
-      <button class="search-window-close" type="button" aria-label="閉じる" data-search-close>
+      <h2 class="title-bar-text" id="search-window-title">Search</h2>
+      <button class="search-window-close" type="button" aria-label="Close" data-search-close>
         <span class="title-bar-button title-bar-close"></span>
       </button>
     </div>
     <div class="search-window-body">
       <form class="search-form" role="search" data-search-form>
-        <label for="search-query">キーワード</label>
+        <label for="search-query">Keyword</label>
         <div class="search-field">
           <input id="search-query" name="q" type="search" autocomplete="off" />
-          <button class="xp-button" type="submit">検索</button>
+          <button class="xp-button" type="submit">Search</button>
         </div>
       </form>
       <p class="search-status" role="status" data-search-status></p>
       <ul class="file-list search-results" data-search-results></ul>
       <nav
         class="search-pagination"
-        aria-label="検索結果のページ送り"
+        aria-label="Search results pages"
         data-search-pagination
         hidden
       >
         <button class="xp-button" type="button" data-search-previous>
-          <span aria-hidden="true">&lt;</span> 前へ
+          <span aria-hidden="true">&lt;</span> Back
         </button>
-        <select class="xp-button search-page" aria-label="ページ" data-search-page></select>
+        <select class="xp-button search-page" aria-label="Page" data-search-page></select>
         <span class="search-page-total" aria-hidden="true" data-search-page-total></span>
         <button class="xp-button" type="button" data-search-next>
-          次へ <span aria-hidden="true">&gt;</span>
+          Next <span aria-hidden="true">&gt;</span>
         </button>
       </nav>
     </div>

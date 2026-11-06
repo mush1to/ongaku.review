@@ -35,12 +35,14 @@ const escapeHtml = (value: string) =>
       })[character]!,
   );
 
-const notFoundPage: PageData = {
+const pathSegments = (path: string) => path.split("/").filter(Boolean).map(decodeURIComponent);
+
+export const notFoundPage: PageData = {
   kind: "404",
   path: "/404.html",
   title: "ページが見つかりません",
   description: "お探しのページは見つかりませんでした。",
-  breadcrumbs: [{ label: "ページが見つかりません" }],
+  breadcrumbs: [{ label: "404.html" }],
 };
 
 /** Splits a list into pages of `site.postsPerPage`; page 1 keeps `firstPath`. */
@@ -66,6 +68,7 @@ function listPages(posts: readonly DocPage[], firstPath: string) {
     return {
       number,
       path,
+      breadcrumbs: pathSegments(path).map((label) => ({ label })),
       posts: posts
         .slice((number - 1) * size, number * size)
         .map(({ path, title, created, icon }) => ({ path, title, created, icon })),
@@ -80,8 +83,6 @@ export function homePages(posts: readonly DocPage[]): PageData[] {
     ...list,
     title: number === 1 ? site.title : `${number}ページ目`,
     description: site.description,
-    // Pagination is a view of Home, so later list pages keep the same address bar.
-    breadcrumbs: [],
   }));
 }
 
@@ -111,20 +112,21 @@ export function tagPages(posts: readonly DocPage[]): PageData[] {
         ...list,
         title: number === 1 ? `#${tag}` : `#${tag}（${number}ページ目）`,
         description: site.description,
-        breadcrumbs: [{ label: "タグ" }, { label: `#${tag}` }],
         tag,
       });
     }
   return pages;
 }
 
-const aboutPage = (doc: DocPage): PageData => ({
+export const aboutPage = (doc: DocPage): PageData => ({
   kind: "page",
   path: doc.path,
   title: doc.title,
   description: doc.description,
   // The address bar presents a document page as a file name.
-  breadcrumbs: [{ label: `${doc.title}.html` }],
+  breadcrumbs: pathSegments(doc.path).map((label, index, segments) => ({
+    label: index === segments.length - 1 ? `${label}.html` : label,
+  })),
   created: doc.created,
   updated: doc.updated,
   isPost: false,
@@ -134,7 +136,7 @@ const adjacentPost = (doc: DocPage | undefined): AdjacentPost | undefined =>
   doc && { path: doc.path, title: doc.title, icon: doc.icon };
 
 /** `posts` is in `listPosts` order, so the older post follows each entry. */
-const postPage = (posts: readonly DocPage[], index: number): PageData => {
+export const postPage = (posts: readonly DocPage[], index: number): PageData => {
   const doc = posts[index]!;
   return {
     ...aboutPage(doc),

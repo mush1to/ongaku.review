@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { site } from "../../config/site";
+import type { PageData } from "../../pages/page-data";
 import type { DocPage } from "./content";
-import { tagPages } from "./host";
+import { aboutPage, homePages, notFoundPage, postPage, tagPages } from "./host";
 
 const posts = (count: number, tags: string[]): DocPage[] =>
   Array.from({ length: count }, (_, index) => ({
@@ -39,5 +40,50 @@ describe("tagPages", () => {
     ).toThrow(
       "タグ「#AC」と「#AC/page/2」のページが同じURL /tags/AC/page/2 になるため、どちらかのタグ名を変更してください",
     );
+  });
+});
+
+describe("アドレスバー", () => {
+  const address = (page: PageData) => page.breadcrumbs.map(({ label }) => label);
+  const doc = (path: string, title: string): DocPage => ({
+    ...posts(1, ["ロック"])[0]!,
+    path,
+    title,
+  });
+
+  it("トップの1ページ目は区切りを出さず、2ページ目以降はURLのパスを区切りごとに出す", () => {
+    expect(homePages(posts(site.postsPerPage * 2 + 1, [])).map(address)).toEqual([
+      [],
+      ["page", "2"],
+      ["page", "3"],
+    ]);
+  });
+
+  it("記事をpostsフォルダの下の、タイトルではなくURLの最後の区切りのファイル名にする", () => {
+    expect(
+      address(postPage([doc("/posts/abbey-road", "「アビイ・ロード」を2026年に聴く")], 0)),
+    ).toEqual(["posts", "abbey-road.html"]);
+  });
+
+  it("Aboutをタイトルではなくabout.htmlにする", () => {
+    expect(address(aboutPage(doc("/about", "About")))).toEqual(["about.html"]);
+  });
+
+  it("タグはURLのパスをデコードして区切りごとに出し、.htmlと#を付けない", () => {
+    expect(tagPages(posts(site.postsPerPage + 1, ["ロック"])).map(address)).toEqual([
+      ["tags", "ロック"],
+      ["tags", "ロック", "page", "2"],
+    ]);
+  });
+
+  it("/を含むタグはURLの区切りどおりにフォルダを分ける", () => {
+    expect(tagPages(posts(site.postsPerPage + 1, ["AC/DC"])).map(address)).toEqual([
+      ["tags", "AC", "DC"],
+      ["tags", "AC", "DC", "page", "2"],
+    ]);
+  });
+
+  it("404を404.htmlにする", () => {
+    expect(address(notFoundPage)).toEqual(["404.html"]);
   });
 });
