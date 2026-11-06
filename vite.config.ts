@@ -7,6 +7,7 @@ import { createSvelteHtmlHostIslandRegistry } from "@ox-content/vite-plugin-svel
 import type { PreviewServer, ViteDevServer } from "vite";
 import {
   aboutDocument,
+  contentDependencies,
   contentDirectory,
   contentRoot,
   invalidateContentCache,
@@ -15,12 +16,11 @@ import {
   loadDocs,
   loadSearchIndex,
   loadSearchPages,
-  usersDirectory,
-  usersDocument,
 } from "./src/utils/ssg/content";
 import { site } from "./src/config/site";
 import { embedMediaPlugin, embedOptions } from "./src/utils/ssg/embeds";
 import { homePages, tagPages } from "./src/utils/ssg/host";
+import { createLegacyUrlRedirect } from "./src/utils/ssg/legacy-url";
 import { resolveBuildOutDir } from "./src/utils/ssg/output-dir";
 
 export default defineConfig(async ({ command, mode }) => {
@@ -50,12 +50,7 @@ export default defineConfig(async ({ command, mode }) => {
   const oxContentPlugins = oxContentCustomHost({
     host: "./src/utils/ssg/host.ts",
     collectionAssets: {
-      watch: [
-        { path: contentDirectory, kind: "directory" },
-        { path: aboutDocument, kind: "file" },
-        { path: usersDocument, kind: "file" },
-        { path: usersDirectory, kind: "directory" },
-      ],
+      watch: contentDependencies,
       manifest: async (ctx) => {
         const docs = [...(await loadDocs(ctx.root)), await loadAboutPage(ctx.root)];
         const result = await planCollectionAssetsFromDocuments({
@@ -97,12 +92,7 @@ export default defineConfig(async ({ command, mode }) => {
     },
     dev: {
       feedOutputs: true,
-      routeDependencies: [
-        { path: contentDirectory, kind: "directory" },
-        { path: aboutDocument, kind: "file" },
-        { path: usersDocument, kind: "file" },
-        { path: usersDirectory, kind: "directory" },
-      ],
+      routeDependencies: contentDependencies,
     },
     build: { enabled: mode !== "test", transformHtml: false },
   });
@@ -145,39 +135,22 @@ export default defineConfig(async ({ command, mode }) => {
         },
         configurePreviewServer(server: PreviewServer) {
           const previewRoot = path.resolve(root, buildOutDir);
-          server.middlewares.use(async (request, response, next) => {
-            try {
-              const url = new URL(request.url ?? "/", "http://localhost");
-              if (url.pathname === "/404.html") return next();
-              const target =
-                url.pathname === "/index.html"
-                  ? "/"
-                  : url.pathname.endsWith("/")
-                    ? url.pathname.replace(/\/+$/, "")
-                    : url.pathname.endsWith(".html")
-                      ? url.pathname.slice(0, -".html".length)
-                      : undefined;
-              if (!target) return next();
+          server.middlewares.use(
+            createLegacyUrlRedirect(async (target) => {
+              if (!target) return false;
               const decodedTarget = decodeURIComponent(target);
               const output = path.resolve(
                 previewRoot,
                 target === "/" ? "index.html" : "." + decodedTarget + ".html",
               );
               if (
-                (output === path.join(previewRoot, "index.html") ||
-                  output.startsWith(previewRoot + path.sep)) &&
-                (await stat(output).catch(() => null))?.isFile()
-              ) {
-                response.statusCode = 301;
-                response.setHeader("Location", target + url.search);
-                response.end();
-                return;
-              }
-              next();
-            } catch (error) {
-              next(error);
-            }
-          });
+                output !== path.join(previewRoot, "index.html") &&
+                !output.startsWith(previewRoot + path.sep)
+              )
+                return false;
+              return (await stat(output).catch(() => null))?.isFile() ?? false;
+            }),
+          );
           return () =>
             server.middlewares.use(async (_request, response, next) => {
               try {
@@ -204,38 +177,17 @@ export default defineConfig(async ({ command, mode }) => {
           server.watcher.on("all", (_event, file) => {
             if (path.resolve(file).startsWith(contentRootPath + path.sep)) invalidateContentCache();
           });
-          server.middlewares.use(async (request, response, next) => {
-            try {
-              const url = new URL(request.url ?? "/", "http://localhost");
-              if (url.pathname !== "/" && url.pathname !== "/404.html") {
-                const target =
-                  url.pathname === "/index.html"
-                    ? "/"
-                    : url.pathname.endsWith("/")
-                      ? url.pathname.replace(/\/+$/, "")
-                      : url.pathname.endsWith(".html")
-                        ? url.pathname.slice(0, -".html".length)
-                        : undefined;
-                if (target !== undefined) {
-                  const posts = listPosts(await loadDocs(root));
-                  const pagePaths = new Set([
-                    (await loadAboutPage(root)).path,
-                    ...posts.map(({ path }) => path),
-                    ...[...homePages(posts), ...tagPages(posts)].map(({ path }) => path),
-                  ]);
-                  if (pagePaths.has(target)) {
-                    response.statusCode = 301;
-                    response.setHeader("Location", target + url.search);
-                    response.end();
-                    return;
-                  }
-                }
-              }
-              next();
-            } catch (error) {
-              next(error);
-            }
-          });
+          server.middlewares.use(
+            createLegacyUrlRedirect(async (target) => {
+              const posts = listPosts(await loadDocs(root));
+              const pagePaths = new Set([
+                (await loadAboutPage(root)).path,
+                ...posts.map(({ path }) => path),
+                ...[...homePages(posts), ...tagPages(posts)].map(({ path }) => path),
+              ]);
+              return pagePaths.has(target);
+            }),
+          );
           server.middlewares.use(async (request, response, next) => {
             const searchOutput = searchOutputs.get(request.url?.split("?")[0] ?? "");
             if (!searchOutput) return next();

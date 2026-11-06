@@ -7,6 +7,11 @@ import siteConfig from "../../../vite.config";
 
 type Command = "build" | "serve";
 type AnyHook = (this: unknown, ...args: unknown[]) => unknown;
+type Middleware = (
+  request: unknown,
+  response: unknown,
+  next: (...args: unknown[]) => void,
+) => unknown;
 
 function flattenPlugins(options: unknown): Plugin[] {
   if (!Array.isArray(options)) return [];
@@ -57,6 +62,52 @@ async function invokeLoad(plugin: Plugin, id: string) {
 
 async function invokeResolveId(plugin: Plugin, id: string) {
   return hookHandler(plugin.resolveId)?.call(plugin, id, undefined, undefined);
+}
+
+async function devMiddlewares() {
+  const plugin = findPlugin(await getPlugins("serve", "development"), "site-public-search");
+  const middlewares: Middleware[] = [];
+  await hookHandler(plugin.configureServer)?.call(plugin, {
+    watcher: { on() {} },
+    middlewares: { use: (middleware: Middleware) => middlewares.push(middleware) },
+  });
+  return middlewares;
+}
+
+async function requestThroughDevServer(url: string) {
+  const middlewares = await devMiddlewares();
+  const headers = new Map<string, string>();
+  const response = {
+    statusCode: 200,
+    ended: false,
+    setHeader: (name: string, value: string) => headers.set(name, value),
+    end() {
+      response.ended = true;
+    },
+  };
+  const errors: unknown[] = [];
+  let passedThrough = false;
+  async function runFrom(index: number): Promise<void> {
+    const middleware = middlewares[index];
+    if (!middleware) {
+      passedThrough = true;
+      return;
+    }
+    let following: Promise<void> | undefined;
+    await middleware({ url }, response, (...args) => {
+      if (args.length) errors.push(args[0]);
+      else following = runFrom(index + 1);
+    });
+    await following;
+  }
+  await runFrom(0);
+  return {
+    statusCode: response.statusCode,
+    ended: response.ended,
+    headers,
+    errors,
+    passedThrough,
+  };
 }
 
 describe("Vite search writer lifecycle", () => {
@@ -121,5 +172,46 @@ describe("Vite search writer lifecycle", () => {
     } finally {
       await rm(outputRoot, { recursive: true, force: true });
     }
+  });
+});
+
+describe("Dev server legacy URL redirect", () => {
+  it.each([
+    ["/index.html", "/"],
+    ["/index.html?q=1", "/?q=1"],
+    ["/about/?q=1", "/about?q=1"],
+    ["/about//", "/about"],
+    ["/about.html?q=1", "/about?q=1"],
+    ["/posts/abbey-road/", "/posts/abbey-road"],
+    ["/tags/%E3%83%AD%E3%83%83%E3%82%AF.html?q=1", "/tags/%E3%83%AD%E3%83%83%E3%82%AF?q=1"],
+  ])("redirects %s to %s", async (source, target) => {
+    const result = await requestThroughDevServer(source);
+
+    expect(result.statusCode).toBe(301);
+    expect(result.headers.get("Location")).toBe(target);
+    expect(result.ended).toBe(true);
+    expect(result.errors).toEqual([]);
+    expect(result.passedThrough).toBe(false);
+  });
+
+  it.each(["/", "/about", "/404.html", "/missing/", "/missing.html?q=1"])(
+    "passes %s through every middleware",
+    async (source) => {
+      const result = await requestThroughDevServer(source);
+
+      expect(result.statusCode).toBe(200);
+      expect(result.headers.size).toBe(0);
+      expect(result.ended).toBe(false);
+      expect(result.errors).toEqual([]);
+      expect(result.passedThrough).toBe(true);
+    },
+  );
+
+  it("passes an unparsable URL to the next middleware as an error", async () => {
+    const result = await requestThroughDevServer("//");
+
+    expect(result.errors).toHaveLength(1);
+    expect(result.errors[0]).toBeInstanceOf(TypeError);
+    expect(result.passedThrough).toBe(false);
   });
 });
