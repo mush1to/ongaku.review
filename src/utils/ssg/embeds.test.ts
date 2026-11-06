@@ -1,9 +1,10 @@
 import { chmod, mkdir, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import type { OxContentCustomHostBaseContext } from "@ox-content/vite-plugin";
 import type { Plugin } from "vite";
-import { afterEach, describe, expect, it } from "vitest";
-import { embedMediaPlugin, embedOptions } from "./embeds";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { embedMediaPlugin, embedOptions, renderDocumentMarkdown } from "./embeds";
 
 const roots: string[] = [];
 
@@ -94,5 +95,41 @@ describe("embedMediaPlugin", () => {
     } finally {
       await chmod(media, 0o755);
     }
+  });
+});
+
+describe("renderDocumentMarkdown", () => {
+  it("ソースが変わった記事と描画に失敗した記事では、前回の結果を返さない", async () => {
+    const render = vi.fn();
+    const context = {
+      mode: "build",
+      options: {},
+      markdown: { render },
+    } as unknown as OxContentCustomHostBaseContext;
+    render
+      .mockResolvedValueOnce({ html: "古い本文" })
+      .mockResolvedValueOnce({ html: "新しい本文" })
+      .mockRejectedValueOnce(new Error("取得に失敗"))
+      .mockResolvedValueOnce({ html: "再試行の本文" });
+    const documentPath = "src/content/posts/post.md";
+
+    const first = await renderDocumentMarkdown(context, { documentPath, source: "古いソース" });
+    expect(first).toMatchObject({ html: "古い本文" });
+    expect(await renderDocumentMarkdown(context, { documentPath, source: "古いソース" })).toBe(
+      first,
+    );
+    expect(render).toHaveBeenCalledTimes(1);
+
+    expect(
+      await renderDocumentMarkdown(context, { documentPath, source: "新しいソース" }),
+    ).toMatchObject({ html: "新しい本文" });
+
+    await expect(
+      renderDocumentMarkdown(context, { documentPath, source: "失敗するソース" }),
+    ).rejects.toThrow("取得に失敗");
+    expect(
+      await renderDocumentMarkdown(context, { documentPath, source: "失敗するソース" }),
+    ).toMatchObject({ html: "再試行の本文" });
+    expect(render).toHaveBeenCalledTimes(4);
   });
 });
