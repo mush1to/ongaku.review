@@ -405,12 +405,18 @@ main {
   min-width: 0;
 }
 
-.pane {
-  overflow: hidden;
+.pane,
+.search-results,
+.author-card,
+.adjacent-link {
   border: 1px solid var(--xp-pane-border);
   border-radius: 0.25rem;
   background: #fff;
   box-shadow: 0 1px 2px rgb(10 40 120 / 0.12);
+}
+
+.pane {
+  overflow: hidden;
 }
 
 .pane-spacer {
@@ -530,14 +536,19 @@ main {
   overflow-wrap: anywhere;
 }
 
-.pagination-links {
+.pagination-links,
+.document-tags,
+.author-links {
   display: flex;
   flex-wrap: wrap;
-  justify-content: center;
   gap: 0.5rem;
-  margin: 0;
   padding: 0;
   list-style: none;
+}
+
+.pagination-links {
+  justify-content: center;
+  margin: 0;
 }
 
 .pagination-links a {
@@ -557,7 +568,9 @@ main {
     0 1px 1px rgb(0 0 0 / 0.12);
 }
 
-.pagination-links a:hover {
+.pagination-links a:hover,
+.xp-button:hover,
+.copy-code:hover {
   box-shadow:
     inset 0 2px 0 var(--xp-hot-light),
     inset 0 -2px 0 var(--xp-hot);
@@ -618,12 +631,6 @@ main {
   cursor: pointer;
 }
 
-.xp-button:hover {
-  box-shadow:
-    inset 0 2px 0 var(--xp-hot-light),
-    inset 0 -2px 0 var(--xp-hot);
-}
-
 .xp-button:focus-visible {
   outline: 1px dotted #000;
   outline-offset: -5px;
@@ -656,10 +663,6 @@ main {
   overflow-y: auto;
   overscroll-behavior: contain;
   scrollbar-gutter: stable;
-  border: 1px solid var(--xp-pane-border);
-  border-radius: 0.25rem;
-  background: #fff;
-  box-shadow: 0 1px 2px rgb(10 40 120 / 0.12);
 }
 
 .search-results:empty {
@@ -919,12 +922,7 @@ body:has(.search-window[open]) .window > .title-bar {
 }
 
 .document-tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
   margin: 0;
-  padding: 0;
-  list-style: none;
 }
 
 .document-tags a {
@@ -964,10 +962,6 @@ body:has(.search-window[open]) .window > .title-bar {
 .author-card {
   align-self: stretch;
   padding: 0.75rem 1rem 1rem;
-  border: 1px solid var(--xp-pane-border);
-  border-radius: 0.25rem;
-  background: #fff;
-  box-shadow: 0 1px 2px rgb(10 40 120 / 0.12);
 }
 
 .author-card-title {
@@ -1009,12 +1003,7 @@ body:has(.search-window[open]) .window > .title-bar {
 }
 
 .author-links {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
   margin: 0.5rem 0 0;
-  padding: 0;
-  list-style: none;
 }
 
 .author-links a {
@@ -1055,10 +1044,6 @@ body:has(.search-window[open]) .window > .title-bar {
   gap: 0.25rem;
   min-height: 2.75rem;
   padding: 0.5rem 0.75rem;
-  border: 1px solid var(--xp-pane-border);
-  border-radius: 0.25rem;
-  background: #fff;
-  box-shadow: 0 1px 2px rgb(10 40 120 / 0.12);
   color: var(--color-text);
   line-height: 1.4;
   text-decoration: none;
@@ -1217,12 +1202,6 @@ body:has(.search-window[open]) .window > .title-bar {
   background: linear-gradient(180deg, #fff 0%, #ecebe6 86%, #d6d0c5 100%);
   color: #333;
   cursor: pointer;
-}
-
-.copy-code:hover {
-  box-shadow:
-    inset 0 2px 0 var(--xp-hot-light),
-    inset 0 -2px 0 var(--xp-hot);
 }
 
 .copy-code[data-state="success"] {
