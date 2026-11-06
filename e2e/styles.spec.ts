@@ -55,6 +55,11 @@ test("一覧・検索結果・著者カード・前後記事の面の枠・角�
   await expect(page.locator(".adjacent-link").first()).toBeVisible();
   expect(await computedSurface(page.locator(".adjacent-link").first())).toEqual(surface);
 
+  const copyCode = page.locator(".prose pre > .copy-code");
+  await expect(copyCode).toHaveCount(1);
+  await expect(copyCode).toHaveAccessibleName("コードをコピー");
+  expect(await computedHoverShadow(copyCode)).toBe(hoverShadow);
+
   await page.goto("/page/2");
   await page.locator(".pagination-links").evaluate((element: HTMLElement) => {
     element.hidden = false;
@@ -63,17 +68,4 @@ test("一覧・検索結果・著者カード・前後記事の面の枠・角�
   expect(await computedHoverShadow(page.locator(".pagination a.xp-button").first())).toBe(
     hoverShadow,
   );
-
-  await page.evaluate(() => {
-    const button = document.createElement("button");
-    button.type = "button";
-    button.className = "copy-code";
-    button.textContent = "copy";
-    button.style.position = "fixed";
-    button.style.top = "50%";
-    button.style.left = "50%";
-    button.style.zIndex = "1";
-    document.body.append(button);
-  });
-  expect(await computedHoverShadow(page.locator(".copy-code"))).toBe(hoverShadow);
 });
