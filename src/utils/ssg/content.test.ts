@@ -1,7 +1,7 @@
 import { mkdir, mkdtemp, realpath, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   planCollectionAssetsFromDocuments,
   rewriteCollectionAssetUrls,
@@ -16,6 +16,30 @@ import {
   loadUsers,
   resolveContentRoot,
 } from "./content";
+
+const { heldReads } = vi.hoisted(() => ({
+  heldReads: new Map<string, { started: () => void; source: Promise<string> }>(),
+}));
+
+vi.mock("node:fs/promises", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("node:fs/promises")>();
+  return {
+    ...actual,
+    readFile: ((
+      file: Parameters<typeof actual.readFile>[0],
+      options?: Parameters<typeof actual.readFile>[1],
+    ) => {
+      const key = String(file);
+      const held = heldReads.get(key);
+      if (held) {
+        heldReads.delete(key);
+        held.started();
+        return held.source;
+      }
+      return actual.readFile(file, options as never);
+    }) as typeof actual.readFile,
+  };
+});
 
 const roots: string[] = [];
 
@@ -876,5 +900,51 @@ describe("resolveContentRoot", () => {
 
   it("空文字を拒否する", () => {
     expect(() => resolveContentRoot("")).toThrow("CONTENT_ROOT:");
+  });
+});
+
+describe("loadDocsの失敗の扱い", () => {
+  it("失敗した読み込みだけをキャッシュから捨てる", async () => {
+    const broken = await createRoot({
+      "broken.md": post("title: 壊れた記事\ndraft: はい"),
+      "ok.md": post("title: 残る記事"),
+    });
+    await expect(loadDocs(broken)).rejects.toThrow("draft には true か false を指定してください");
+    await writeFile(
+      path.join(broken, "src/content/posts/broken.md"),
+      post("title: 直した記事"),
+      "utf8",
+    );
+
+    expect((await loadDocs(broken)).map((doc) => doc.title)).toEqual(["直した記事", "残る記事"]);
+
+    const slow = await createRoot({ "slow.md": post("title: 遅い記事") });
+    let release!: (source: string) => void;
+    let startedRead!: () => void;
+    const started = new Promise<void>((resolve) => {
+      startedRead = resolve;
+    });
+    heldReads.set(path.join(slow, "src/content/users.yaml"), {
+      started: startedRead,
+      source: new Promise<string>((resolve) => {
+        release = resolve;
+      }),
+    });
+
+    const failing = loadDocs(slow);
+    await started;
+    invalidateContentCache();
+    const fresh = loadDocs(slow);
+    await expect(fresh).resolves.toHaveLength(1);
+    await writeFile(
+      path.join(slow, "src/content/posts/added.md"),
+      post("title: 追加の記事"),
+      "utf8",
+    );
+    release("- 配列");
+    await expect(failing).rejects.toThrow(
+      "users.yaml: ユーザーIDをキーにしたマップで書いてください",
+    );
+    expect((await loadDocs(slow)).map((doc) => doc.title)).toEqual(["遅い記事"]);
   });
 });
