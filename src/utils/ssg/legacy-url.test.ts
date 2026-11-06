@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { legacyUrlTarget } from "./legacy-url";
 
+const protocolRelativeTarget = /^\/[/\\]/;
+
 describe("legacyUrlTarget", () => {
   it.each([
     ["/index.html", "/"],
@@ -10,8 +12,12 @@ describe("legacyUrlTarget", () => {
     ["/tags/%E3%83%AD%E3%83%83%E3%82%AF.html", "/tags/%E3%83%AD%E3%83%83%E3%82%AF"],
     ["//", ""],
     ["/tags//x/", "/tags//x"],
+    ["/tags/a\\b/", "/tags/a\\b"],
   ])("%s を %s へ転送する", (pathname, target) => {
-    expect(legacyUrlTarget(pathname)).toBe(target);
+    const actual = legacyUrlTarget(pathname);
+
+    expect(actual).toBe(target);
+    expect(actual).not.toMatch(protocolRelativeTarget);
   });
 
   it.each([
@@ -19,15 +25,25 @@ describe("legacyUrlTarget", () => {
     ["//about/", "/about"],
     ["///x.html", "/x"],
     ["//evil.com/", "/evil.com"],
+    ["////evil.com/", "/evil.com"],
     ["///.html", "/"],
-  ])("%s の先頭の slash を 1 つに畳んで %s へ転送する", (pathname, target) => {
-    expect(legacyUrlTarget(pathname)).toBe(target);
-  });
+    ["/\\evil.com/", "/evil.com"],
+    ["//\\evil.com.html", "/evil.com"],
+    ["/\\/\\evil.com/", "/evil.com"],
+  ])(
+    "%s の先頭の slash と backslash を 1 つの slash に畳んで %s へ転送する",
+    (pathname, target) => {
+      const actual = legacyUrlTarget(pathname);
 
-  it.each(["//index.html", "//about/", "///x.html", "//evil.com/", "///.html", "//about//", "///"])(
-    "%s の転送先は // で始まらない",
+      expect(actual).toBe(target);
+      expect(actual).not.toMatch(protocolRelativeTarget);
+    },
+  );
+
+  it.each(["//about//", "///", "/\\/", "/\\\\.html", "//\\//"])(
+    "%s の転送先は / の直後に / も \\ も続けない",
     (pathname) => {
-      expect(legacyUrlTarget(pathname)).not.toMatch(/^\/\//);
+      expect(legacyUrlTarget(pathname)).not.toMatch(protocolRelativeTarget);
     },
   );
 

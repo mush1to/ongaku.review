@@ -8,7 +8,7 @@ export function legacyUrlTarget(pathname: string) {
     : pathname.endsWith(".html")
       ? pathname.slice(0, -".html".length)
       : undefined;
-  return target?.replace(/^\/+/, "/");
+  return target?.replace(/^[/\\]+/, "/");
 }
 
 export function createLegacyUrlRedirect(targetExists: (target: string) => Promise<boolean>) {

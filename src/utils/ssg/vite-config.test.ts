@@ -13,6 +13,8 @@ type Middleware = (
   next: (...args: unknown[]) => void,
 ) => unknown;
 
+const safeLocation = /^\/(?![/\\])/;
+
 function flattenPlugins(options: unknown): Plugin[] {
   if (!Array.isArray(options)) return [];
   return options.flatMap((option) => {
@@ -191,6 +193,7 @@ describe("Dev server legacy URL redirect", () => {
 
     expect(result.statusCode).toBe(301);
     expect(result.headers.get("Location")).toBe(target);
+    expect(result.headers.get("Location")).toMatch(safeLocation);
     expect(result.ended).toBe(true);
     expect(result.errors).toEqual([]);
     expect(result.passedThrough).toBe(false);
@@ -219,10 +222,13 @@ describe("Dev server legacy URL redirect", () => {
     "/\\evil.com/",
     "/./\\evil.com/",
     "/.//evil.com/",
+    "/.///\\evil.com/",
+    "/.//\\evil.com.html",
+    "/./\\/evil.com/",
   ])("does not send a protocol-relative Location for %s", async (source) => {
     const result = await requestThroughDevServer(source);
 
-    if (result.statusCode === 301) expect(result.headers.get("Location")).toMatch(/^\/(?!\/)/);
+    if (result.statusCode === 301) expect(result.headers.get("Location")).toMatch(safeLocation);
     else expect(result.headers.has("Location")).toBe(false);
   });
 
