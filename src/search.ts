@@ -110,8 +110,8 @@ export function initSearch(form: HTMLFormElement) {
       );
     }
     pageSelect.value = String(current + 1);
-    pageSelect.setAttribute("aria-label", `ページ（全 ${pageCount} ページ）`);
-    pageTotal.textContent = `/ ${pageCount}`;
+    pageSelect.setAttribute("aria-label", `Page (of ${pageCount})`);
+    pageTotal.textContent = `of ${pageCount}`;
     previous.setAttribute("aria-disabled", String(current === 0));
     next.setAttribute("aria-disabled", String(current >= pageCount - 1));
   };

@@ -28,7 +28,7 @@ const post: PageData = {
   path: "/posts/abbey-road",
   title: "「アビイ・ロード」を2026年に聴く",
   description: "最後の一音まで聴く。",
-  breadcrumbs: [{ label: "「アビイ・ロード」を2026年に聴く.html" }],
+  breadcrumbs: [{ label: "abbey-road.html" }],
   isPost: true,
   created: "2026-10-25",
   updated: "2026-10-26",
@@ -204,7 +204,7 @@ describe("pageHead の記事以外のページ", () => {
       path: "/404.html",
       title: "ページが見つかりません",
       description: "お探しのページは見つかりませんでした。",
-      breadcrumbs: [{ label: "ページが見つかりません" }],
+      breadcrumbs: [{ label: "404.html" }],
     });
 
     expect(metaContent(html, "property", "og:type")).toBe("website");
