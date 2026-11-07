@@ -375,6 +375,7 @@ img {
   padding: 0;
   overflow: hidden;
   list-style: none;
+  color: var(--color-muted);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -390,7 +391,7 @@ img {
 }
 
 .address-bar a {
-  color: var(--color-text);
+  color: var(--color-muted);
   text-decoration: none;
 }
 
