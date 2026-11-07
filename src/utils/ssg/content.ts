@@ -2,7 +2,10 @@ import { readFile, readdir, realpath, stat } from "node:fs/promises";
 import path from "node:path";
 import { buildCollectionManifest, prepareSource } from "@ox-content/napi";
 import { parse } from "yaml";
-import { buildSearchIndex } from "@ox-content/vite-plugin";
+import {
+  buildSearchIndex,
+  type OxContentCustomHostDependencyDescriptor,
+} from "@ox-content/vite-plugin";
 import { defaultPostIcon, isPostIcon, postIcons, type PostIcon } from "../../config/icons";
 import { site } from "../../config/site";
 import type { AuthorLink } from "../../pages/page-data";
@@ -29,6 +32,12 @@ export const contentDirectory = `${contentRoot}/posts`;
 export const aboutDocument = `${contentRoot}/about.mdx`;
 export const usersDocument = `${contentRoot}/users.yaml`;
 export const usersDirectory = `${contentRoot}/users`;
+export const contentDependencies: readonly OxContentCustomHostDependencyDescriptor[] = [
+  { path: contentDirectory, kind: "directory" },
+  { path: aboutDocument, kind: "file" },
+  { path: usersDocument, kind: "file" },
+  { path: usersDirectory, kind: "directory" },
+];
 const assetRoot = contentRoot;
 /** Formats X accepts for summary_large_image cards. User icons accept the same formats. */
 const imageExtensions = [".jpg", ".jpeg", ".png", ".webp"];
